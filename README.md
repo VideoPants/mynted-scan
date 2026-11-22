@@ -70,22 +70,19 @@ MyntedScan localizes outer and inner borders to subpixel precision, fits edges w
 
 Prefer MIT / Apache-2.0 / BSD. No AGPL or GPL dependencies. Pokémon card images are not committed; artwork belongs to The Pokémon Company.
 
-## Deploy (paused)
+## Deploy
 
-Do not claim a production URL until these browser approvals succeed:
+Production: [https://mynted-scan.vercel.app](https://mynted-scan.vercel.app)  
+Source: [github.com/VideoPants/mynted-scan](https://github.com/VideoPants/mynted-scan)
+
+Hosted on Vercel with Neon Postgres (`fra1`). Card ID stays off (`NEXT_PUBLIC_FEATURE_CARD_ID=false`). OpenCV WASM is served with long-cache headers when present under `/opencv/`.
 
 ```bash
-gh auth status || gh auth login --web
-npx vercel whoami || npx vercel login
-npx vercel link
-# Neon: npx vercel integration add neon --help   or   npx neonctl auth
-# Map pooled → DATABASE_URL, unpooled → DIRECT_URL
-npx prisma migrate deploy
-npx vercel env add NEXT_PUBLIC_FEATURE_CARD_ID production   # false
 npx vercel --prod
+# migrations (production):
+#   pull DATABASE_URL + DIRECT_URL (= DATABASE_URL_UNPOOLED), then
+#   npm run db:migrate -w @mynted/web && npm run db:seed -w @mynted/web
 ```
-
-Until then: `npm run setup && npm run dev`
 
 ## Docs in this repo
 
