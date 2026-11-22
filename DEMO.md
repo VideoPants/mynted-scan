@@ -11,10 +11,12 @@
 9. Show `/embed/report/:slug` as it would appear on a listing.
 10. Show ACCURACY.md tables.
 
-## Production checklist (Phase 16 — paused)
+## Production checklist (Phase 16)
 
-- [ ] Live URL loads `/en`
-- [ ] Camera or upload reaches results
-- [ ] Share page + OG image
-- [ ] Arabic `/ar`
-- [ ] `NEXT_PUBLIC_FEATURE_CARD_ID=false`
+Live: https://mynted-scan.vercel.app
+
+- [x] Live URL loads `/en`
+- [ ] Camera or upload reaches results (verify on a phone over HTTPS)
+- [ ] Share page + OG image (create a scan, then open `/en/share/:slug` and `/api/og/:slug`)
+- [x] Arabic `/ar`
+- [x] `NEXT_PUBLIC_FEATURE_CARD_ID=false`
