@@ -1,0 +1,19 @@
+[
+  {
+    "id": "tcgdex-me02",
+    "url": "https://api.tcgdex.net/v2/en/sets/me02",
+    "licence": "TCGdex DB MIT; card artwork \u00a9 The Pok\u00e9mon Company (reference-only, verify before commercial use)",
+    "downloadedOn": "2026-11-22",
+    "count": 8,
+    "permittedUse": "local evaluation / augmentation only; do not redistribute images"
+  },
+  {
+    "id": "real-photo-search",
+    "url": "https://huggingface.co/datasets",
+    "licence": "n/a",
+    "downloadedOn": "2026-11-22",
+    "count": 0,
+    "permittedUse": "skipped \u2014 no tokenless CC0/CC-BY Pok\u00e9mon card photo dataset auto-selected in this run",
+    "skipped": true
+  }
+]
