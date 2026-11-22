@@ -70,6 +70,29 @@ MyntedScan localizes outer and inner borders to subpixel precision, fits edges w
 
 Prefer MIT / Apache-2.0 / BSD. No AGPL or GPL dependencies. Pokémon card images are not committed; artwork belongs to The Pokémon Company.
 
-## Deploy
+## Deploy (paused)
 
-Phase 16 is paused until GitHub / Vercel / Neon browser approvals. See the final report section in the agent handoff for exact login commands.
+Do not claim a production URL until these browser approvals succeed:
+
+```bash
+gh auth status || gh auth login --web
+npx vercel whoami || npx vercel login
+npx vercel link
+# Neon: npx vercel integration add neon --help   or   npx neonctl auth
+# Map pooled → DATABASE_URL, unpooled → DIRECT_URL
+npx prisma migrate deploy
+npx vercel env add NEXT_PUBLIC_FEATURE_CARD_ID production   # false
+npx vercel --prod
+```
+
+Until then: `npm run setup && npm run dev`
+
+## Docs in this repo
+
+| File | Purpose |
+|------|---------|
+| [METHOD.md](./METHOD.md) | Centering algorithm |
+| [ACCURACY.md](./ACCURACY.md) | Measured eval numbers only |
+| [DATASETS.md](./DATASETS.md) | Image sources and licences |
+| [DEMO.md](./DEMO.md) | Recording / checklist script |
+| [INTEGRATION.md](./INTEGRATION.md) | Setline attach contract (no Setline edits) |

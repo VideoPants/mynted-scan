@@ -201,7 +201,12 @@ export function ScanCapture() {
               className="flex items-center gap-2 rounded-[var(--radius)] bg-[var(--color-secondary)] px-3 py-2 text-sm"
             >
               {checks[key] ? (
-                <CheckCircle size={18} weight="fill" className="text-[var(--color-success)]" aria-hidden />
+                <CheckCircle
+                  size={18}
+                  weight="fill"
+                  className="check-ok text-[var(--color-success)]"
+                  aria-hidden
+                />
               ) : (
                 <Circle size={18} aria-hidden />
               )}

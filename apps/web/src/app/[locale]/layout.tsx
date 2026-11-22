@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { Providers } from "@/components/Providers";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -27,15 +28,17 @@ export default async function LocaleLayout({
   const messages = await getMessages();
   const session = await auth();
   const dir = locale === "ar" ? "rtl" : "ltr";
+  const signedIn = Boolean(session?.user);
 
   return (
     <html lang={locale} dir={dir}>
-      <body className="flex min-h-[100dvh] flex-col antialiased">
+      <body className="site-atmosphere flex min-h-[100dvh] flex-col antialiased">
         <NextIntlClientProvider messages={messages}>
           <Providers>
-            <SiteHeader signedIn={Boolean(session?.user)} />
-            <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+            <SiteHeader signedIn={signedIn} />
+            <main className="page-shell w-full flex-1 py-6 md:py-8">{children}</main>
             <SiteFooter />
+            <MobileTabBar signedIn={signedIn} />
           </Providers>
         </NextIntlClientProvider>
       </body>

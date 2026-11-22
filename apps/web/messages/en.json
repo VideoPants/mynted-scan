@@ -14,11 +14,15 @@
   },
   "home": {
     "product": "Scan",
+    "headlineBefore": "Measure card",
+    "headlineAccent": "centering",
+    "headlineAfter": "on your phone.",
     "headline": "Measure card centering on your phone.",
     "sub": "Photograph the front and back. Get left/right and top/bottom ratios with uncertainty — processed on your device.",
     "ctaScan": "Scan card",
     "ctaUpload": "Upload photos",
-    "privacy": "Photos stay on your device until you save or share."
+    "privacy": "Photos stay on your device until you save or share.",
+    "banner": "Measure card centering on your device — ratios with uncertainty, not a full grade"
   },
   "scan": {
     "title": "Scan",
