@@ -1,0 +1,10 @@
+{
+  "set": "augmented",
+  "split": "test",
+  "n": 4,
+  "evaluated": 2,
+  "rejectRate": 0.5,
+  "mae_pp": 4.3936719300370015,
+  "p95_pp": 5.622555724740484,
+  "gtType": "augmented"
+}

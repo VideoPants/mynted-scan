@@ -26,12 +26,16 @@ Aspiration (not claimed): MAE ≤ 0.3 pp, p95 ≤ 0.8 pp. Current limiter: resid
 
 ## Augmented official scans (exact relative GT)
 
+Measured on 2026-11-22 after TCGdex fetch + programmatic shift (`n=4` sample):
+
 | Metric | Value | Notes |
 |--------|------:|-------|
-| MAE (pp) | pending | Run `npm run data:fetch` then augment |
-| Reject rate | pending | |
+| evaluated | 2 | |
+| reject rate | 0.50 | High — official webps often lack a classical yellow-frame signal |
+| MAE (pp) | **4.39** | Approximate on tiny sample; aspiration ≤ 0.5 not met |
+| p95 (pp) | **5.62** | |
 
-Aspiration: MAE ≤ 0.5 pp.
+Limiter: classical inner-frame detection on modern full-art-leaning scans; expand sample and tune on **dev** only before retesting.
 
 ## Agent-labelled real photos (approximate)
 
