@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mynted
+          POSTGRES_PASSWORD: mynted
+          POSTGRES_DB: centering
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U mynted -d centering"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://mynted:mynted@localhost:5433/centering?schema=public
+      DIRECT_URL: postgresql://mynted:mynted@localhost:5433/centering?schema=public
+      AUTH_SECRET: ci-secret-not-for-production
+      NEXT_PUBLIC_FEATURE_CARD_ID: "false"
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: astral-sh/setup-uv@v4
+      - name: Install
+        run: npm install
+      - name: Build packages
+        run: npm run build -w @mynted/centering-core && npm run build -w @mynted/card-id
+      - name: Migrate
+        run: npm run db:migrate -w @mynted/web
+      - name: Lint / typecheck / unit
+        run: |
+          npm run typecheck
+          npm run test
+      - name: Python sync + tests
+        working-directory: services/measure-py
+        run: |
+          uv sync
+          uv run pytest -q
+          uv run python -m generators.synthetic --count 20
+          uv run python -m eval.run --split test --set synthetic
+          uv run python -m eval.parity
+      - name: Build web
+        run: npm run build -w @mynted/web
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: E2E
+        run: npm run test:e2e -w @mynted/web
+        env:
+          CI: "true"

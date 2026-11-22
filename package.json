@@ -1,0 +1,33 @@
+{
+  "name": "mynted-scan",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/predev.mjs && npm run dev -w @mynted/web",
+    "build": "npm run build -w @mynted/centering-core && npm run build -w @mynted/card-id && npm run build -w @mynted/web",
+    "lint": "npm run lint -w @mynted/web",
+    "typecheck": "npm run typecheck -w @mynted/centering-core && npm run typecheck -w @mynted/card-id && npm run typecheck -w @mynted/web",
+    "test": "npm run test -w @mynted/centering-core && npm run test -w @mynted/web",
+    "test:e2e": "npm run test:e2e -w @mynted/web",
+    "db:up": "node scripts/db-up.mjs",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w @mynted/web",
+    "db:seed": "npm run db:seed -w @mynted/web",
+    "data:fetch": "cd services/measure-py && uv run python -m generators.fetch_data",
+    "data:generate": "cd services/measure-py && uv run python -m generators.synthetic",
+    "eval:synthetic": "cd services/measure-py && uv run python -m eval.run --split test --set synthetic",
+    "eval:augmented": "cd services/measure-py && uv run python -m eval.run --split test --set augmented",
+    "eval:real": "cd services/measure-py && uv run python -m eval.run --split test --set real",
+    "parity": "cd services/measure-py && uv run python -m eval.parity",
+    "py:dev": "cd services/measure-py && uv run uvicorn app.main:app --reload --port 8001",
+    "py:test": "cd services/measure-py && uv run pytest -q"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

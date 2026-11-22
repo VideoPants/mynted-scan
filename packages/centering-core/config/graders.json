@@ -1,0 +1,173 @@
+[
+  {
+    "company": "PSA",
+    "grade": "10",
+    "label": "Gem Mint 10",
+    "front": 55,
+    "back": 75,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  },
+  {
+    "company": "PSA",
+    "grade": "9",
+    "label": "Mint 9",
+    "front": 60,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  },
+  {
+    "company": "PSA",
+    "grade": "8",
+    "label": "NM-MT 8",
+    "front": 65,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "PSA",
+    "grade": "7",
+    "label": "NM 7",
+    "front": 70,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "PSA",
+    "grade": "6",
+    "label": "EX-MT 6",
+    "front": 80,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "PSA",
+    "grade": "5",
+    "label": "EX 5",
+    "front": 85,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "PSA",
+    "grade": "4",
+    "label": "VG-EX 4",
+    "front": 85,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "PSA",
+    "grade": "3",
+    "label": "VG 3",
+    "front": 90,
+    "back": 90,
+    "sourceUrl": "https://www.psacard.com/gradingstandards",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "CGC",
+    "grade": "Pristine 10",
+    "label": "Pristine 10",
+    "front": 50,
+    "back": null,
+    "sourceUrl": "https://www.cgccards.com/card-grading/grading-scale/",
+    "checkedOn": "2026-11-20",
+    "status": "unverified"
+  },
+  {
+    "company": "CGC",
+    "grade": "Gem Mint 10",
+    "label": "Gem Mint 10",
+    "front": 55,
+    "back": 75,
+    "sourceUrl": "https://www.cgccards.com/card-grading/grading-scale/",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  },
+  {
+    "company": "CGC",
+    "grade": "Mint 9",
+    "label": "Mint 9",
+    "front": 60,
+    "back": 90,
+    "sourceUrl": "https://www.cgccards.com/card-grading/grading-scale/",
+    "checkedOn": "2026-11-20",
+    "status": "third-party"
+  },
+  {
+    "company": "BGS",
+    "grade": "Pristine 10",
+    "label": "Pristine 10 / Black Label",
+    "front": 50,
+    "back": 55,
+    "sourceUrl": "",
+    "checkedOn": "2026-11-20",
+    "status": "unverified"
+  },
+  {
+    "company": "BGS",
+    "grade": "9.5",
+    "label": "Gem Mint 9.5",
+    "front": 55,
+    "back": 60,
+    "sourceUrl": "",
+    "checkedOn": "2026-11-20",
+    "status": "unverified"
+  },
+  {
+    "company": "BGS",
+    "grade": "9",
+    "label": "Mint 9",
+    "front": 60,
+    "back": 65,
+    "sourceUrl": "",
+    "checkedOn": "2026-11-20",
+    "status": "unverified",
+    "notes": "Back threshold sources conflict between 65 and 70; stored 65."
+  },
+  {
+    "company": "TAG",
+    "grade": "Pristine 10",
+    "label": "Pristine 10",
+    "front": 51,
+    "back": 52,
+    "sourceUrl": "https://taggrading.com/pages/rubric",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  },
+  {
+    "company": "TAG",
+    "grade": "Gem Mint 10",
+    "label": "Gem Mint 10",
+    "front": 55,
+    "back": 65,
+    "sourceUrl": "https://taggrading.com/pages/rubric",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  },
+  {
+    "company": "TAG",
+    "grade": "Mint 9",
+    "label": "Mint 9",
+    "front": 60,
+    "back": 75,
+    "sourceUrl": "https://taggrading.com/pages/rubric",
+    "checkedOn": "2026-11-20",
+    "status": "official"
+  }
+]

@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "title": "MyntedScan | Card centering by MYNTED",
+    "description": "Measure Pokémon card centering on your device. Ratios, uncertainty, and company ceilings — not a full grade."
+  },
+  "nav": {
+    "scan": "Scan",
+    "history": "History",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
+    "backToMynted": "Back to MYNTED",
+    "upload": "Upload instead"
+  },
+  "home": {
+    "product": "Scan",
+    "headline": "Measure card centering on your phone.",
+    "sub": "Photograph the front and back. Get left/right and top/bottom ratios with uncertainty — processed on your device.",
+    "ctaScan": "Scan card",
+    "ctaUpload": "Upload photos",
+    "privacy": "Photos stay on your device until you save or share."
+  },
+  "scan": {
+    "title": "Scan",
+    "front": "Front",
+    "back": "Back",
+    "skipBack": "Skip back (front only)",
+    "checklist": {
+      "found": "Card found",
+      "fill": "Fill frame",
+      "tilt": "Level",
+      "blur": "Sharp",
+      "glare": "No glare",
+      "steady": "Steady"
+    },
+    "shutter": "Capture",
+    "processing": "Measuring centering…",
+    "permissionDenied": "Camera permission denied. You can upload photos instead.",
+    "uploadHint": "JPEG, PNG, or HEIC (where supported)."
+  },
+  "results": {
+    "title": "Centering result",
+    "lr": "Left / Right",
+    "tb": "Top / Bottom",
+    "borders": "Borders (mm)",
+    "confidence": "Confidence",
+    "status": "Status",
+    "ceilings": "Centering ceilings",
+    "ceilingsNote": "Best grade centering alone allows — not a full grade.",
+    "borderline": "Borderline",
+    "standardsChecked": "Standards checked on {date}",
+    "manualAdjust": "Adjust lines",
+    "pickCard": "Pick card",
+    "save": "Save to history",
+    "share": "Share",
+    "tips": "Tips",
+    "frontOnly": "Front only",
+    "wider": "Wider on {side}",
+    "disclaimer": "MyntedScan is a MYNTED tool. It is not affiliated with PSA, CGC, Beckett, TAG, or The Pokémon Company. Results are centering ceilings with uncertainty, not grades."
+  },
+  "manual": {
+    "title": "Adjust lines",
+    "hint": "Drag lines or nudge with arrow keys (0.1 mm). Reset restores the detector.",
+    "reset": "Reset",
+    "done": "Done"
+  },
+  "cardPicker": {
+    "title": "Find your card",
+    "placeholder": "Name, set, or number",
+    "search": "Search",
+    "empty": "No cards found",
+    "optional": "Optional — helps label your report"
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "signUpTitle": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "submitSignIn": "Sign in",
+    "submitSignUp": "Create account",
+    "needAccount": "Need an account?",
+    "haveAccount": "Already have an account?",
+    "savePrompt": "Sign in to save this scan to your history."
+  },
+  "history": {
+    "title": "History",
+    "empty": "No saved scans yet.",
+    "rename": "Rename",
+    "delete": "Delete",
+    "open": "Open"
+  },
+  "share": {
+    "title": "Shared centering report",
+    "revoked": "This share link is no longer available."
+  },
+  "errors": {
+    "noCard": "No card detected. Try a darker background and fill the frame.",
+    "tooSmall": "Card is too small in the frame. Move closer.",
+    "unsupportedFormat": "Unsupported image format.",
+    "generic": "Something went wrong. Try again."
+  },
+  "footer": {
+    "privacy": "Photos are processed on your device.",
+    "attribution": "Card data via TCGdex and the Pokémon TCG API.",
+    "independent": "MyntedScan by MYNTED. Not affiliated with PSA, CGC, Beckett, TAG, or The Pokémon Company."
+  },
+  "status": {
+    "OK": "OK",
+    "LOW_CONFIDENCE": "Low confidence",
+    "UNSUPPORTED": "Unsupported — adjust manually",
+    "MANUAL": "Manually adjusted"
+  }
+}

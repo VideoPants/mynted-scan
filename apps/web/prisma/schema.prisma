@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PreferredLocale {
+  en
+  ar
+}
+
+enum IdentitySource {
+  USER
+  AUTO
+}
+
+enum FaceSide {
+  FRONT
+  BACK
+}
+
+enum FaceStatus {
+  OK
+  LOW_CONFIDENCE
+  UNSUPPORTED
+  MANUAL
+}
+
+enum CaptureSource {
+  CAMERA
+  UPLOAD
+  SCANNER
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String?
+  passwordHash    String
+  preferredLocale PreferredLocale @default(en)
+  createdAt       DateTime        @default(now())
+  scans           Scan[]
+}
+
+model Scan {
+  id                 String              @id @default(cuid())
+  userId             String?
+  user               User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title              String?
+  algorithmVersion   String
+  createdAt          DateTime            @default(now())
+  cardId             String?
+  setId              String?
+  setName            String?
+  number             String?
+  name               String?
+  imageUrl           String?
+  identitySource     IdentitySource      @default(USER)
+  identityConfidence Float?
+  candidatesJson     Json?
+  faces              ScanFace[]
+  shareLinks         ShareLink[]
+  attachments        ListingAttachment[]
+}
+
+model ScanFace {
+  id             String        @id @default(cuid())
+  scanId         String
+  scan           Scan          @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  face           FaceSide
+  status         FaceStatus
+  borderL        Float
+  borderR        Float
+  borderT        Float
+  borderB        Float
+  lrRatio        Float
+  tbRatio        Float
+  uncertaintyLr  Float
+  uncertaintyTb  Float
+  confidence     Float
+  printSkewDeg   Float         @default(0)
+  framesUsed     Int           @default(1)
+  captureSource  CaptureSource
+  qualityJson    Json?
+  linesJson      Json?
+  manualAdjusted Boolean       @default(false)
+  thumbnailRef   String?
+
+  @@unique([scanId, face])
+}
+
+model ShareLink {
+  id        String    @id @default(cuid())
+  scanId    String
+  scan      Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+}
+
+model ListingAttachment {
+  id                String   @id @default(cuid())
+  scanId            String
+  scan              Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  externalListingId String
+  target            String   @default("setline")
+  createdAt         DateTime @default(now())
+}

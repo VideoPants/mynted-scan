@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="MYNTED">
+  <rect width="220" height="48" rx="8" fill="#131921"/>
+  <text x="18" y="32" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="2">MYNTED</text>
+  <circle cx="198" cy="24" r="6" fill="#0071E3"/>
+</svg>

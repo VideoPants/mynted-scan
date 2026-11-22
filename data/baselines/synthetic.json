@@ -1,0 +1,10 @@
+{
+  "set": "synthetic",
+  "split": "test",
+  "n": 10,
+  "evaluated": 9,
+  "rejectRate": 0.1,
+  "mae_pp": 1.4030132908166388,
+  "p95_pp": 2.659372283551843,
+  "gtType": "synthetic"
+}
