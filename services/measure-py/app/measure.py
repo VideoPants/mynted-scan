@@ -39,9 +39,17 @@ def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None
     if aspect < target * 0.55 or aspect > target * 1.8:
         return _unsupported(face, "aspect")
 
-    quad = _detect_quad(gray)
-    if quad is None:
+    detected = _detect_quad(gray)
+    if detected is None:
         return _unsupported(face, "no_quad")
+    if isinstance(detected, dict) and detected.get("reason") == "SLAB":
+        return _unsupported(face, "SLAB")
+    from_slab = False
+    if isinstance(detected, dict):
+        from_slab = bool(detected.get("from_slab"))
+        quad = detected["quad"]
+    else:
+        quad = detected
 
     canonical_w = int(profile["width_mm"] * profile["px_per_mm"])
     canonical_h = int(profile["height_mm"] * profile["px_per_mm"])
@@ -60,6 +68,8 @@ def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None
     borders, status, confidence, lines, residual_lr, residual_tb, reason = _inner_borders(
         rectified, face, profile
     )
+    if from_slab and status == "UNSUPPORTED":
+        return _unsupported(face, "SLAB")
     lr = lr_ratio(borders)
     tb = tb_ratio(borders)
     quality: dict[str, Any] = {"width": w, "height": h}
@@ -99,9 +109,78 @@ def _shrink_quad(pts: np.ndarray, px: float = 1.0) -> np.ndarray:
     return out
 
 
-def _detect_quad(gray: np.ndarray) -> np.ndarray | None:
+SLAB_ASPECT = 80 / 133
+CARD_ASPECT_FAR = 0.12
+
+
+def _portrait_aspect(qw: float, qh: float) -> float:
+    a = qw / max(qh, 1)
+    return a if a <= 1 else 1 / a
+
+
+def _aspect_score(qw: float, qh: float, target: float) -> float:
+    if qw < 8 or qh < 8:
+        return float("inf")
+    return abs(math.log(_portrait_aspect(qw, qh) / target))
+
+
+def _looks_like_slab(qw: float, qh: float, target: float) -> bool:
+    card_score = _aspect_score(qw, qh, target)
+    slab_score = _aspect_score(qw, qh, SLAB_ASPECT)
+    return card_score > CARD_ASPECT_FAR and slab_score < card_score
+
+
+def _has_label_band(gray: np.ndarray, pts: np.ndarray) -> bool:
+    min_x = int(max(0, pts[:, 0].min()))
+    max_x = int(min(gray.shape[1] - 1, pts[:, 0].max()))
+    min_y = int(max(0, pts[:, 1].min()))
+    max_y = int(min(gray.shape[0] - 1, pts[:, 1].max()))
+    band_h = max(4, int((max_y - min_y) * 0.12))
+    top = gray[min_y : min_y + band_h, min_x : max_x + 1]
+    if top.size < 10:
+        return False
+    top_mean = float(top.mean())
+    below_y0 = min_y + band_h + 4
+    below_y1 = min(max_y, below_y0 + band_h)
+    below = gray[below_y0:below_y1, min_x : max_x + 1]
+    if below.size < 10:
+        return False
+    return top_mean > 140 and top_mean - float(below.mean()) > 25
+
+
+def _find_nested_card(
+    cands: list[tuple[float, np.ndarray, float, float, float]],
+    outer: np.ndarray,
+    target: float,
+) -> np.ndarray | None:
+    outer_area = float(
+        np.hypot(outer[1, 0] - outer[0, 0], outer[1, 1] - outer[0, 1])
+        * np.hypot(outer[3, 0] - outer[0, 0], outer[3, 1] - outer[0, 1])
+    )
+    min_x, max_x = float(outer[:, 0].min()), float(outer[:, 0].max())
+    min_y, max_y = float(outer[:, 1].min()), float(outer[:, 1].max())
+    best: np.ndarray | None = None
+    best_score = float("inf")
+    for _score, pts, area, qw, qh in cands:
+        if area < outer_area * 0.2 or area > outer_area * 0.85:
+            continue
+        cx, cy = float(pts[:, 0].mean()), float(pts[:, 1].mean())
+        if not (min_x <= cx <= max_x and min_y <= cy <= max_y):
+            continue
+        a_score = _aspect_score(qw, qh, target)
+        if a_score > 0.25:
+            continue
+        if a_score < best_score:
+            best_score = a_score
+            best = pts
+    return _shrink_quad(best) if best is not None else None
+
+
+def _detect_quad(gray: np.ndarray) -> np.ndarray | dict[str, Any] | None:
+    """Return card quad, {reason: SLAB}, {quad, from_slab}, or None."""
     h, w = gray.shape[:2]
     img_area = h * w
+    target = 63 / 88
     fill = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
 
     # Bright-region bbox — only used when fill is high (little perspective).
@@ -117,10 +196,8 @@ def _detect_quad(gray: np.ndarray) -> np.ndarray | None:
                 min_x <= 2 and min_y <= 2 and max_x >= w - 3 and max_y >= h - 3
             ):
                 return fill
-            aspect = bw / max(bh, 1)
-            target = 63 / 88
             fill_in_bbox = (xs.size) / max(bw * bh, 1)
-            if abs(np.log(aspect / target)) < 0.35 and fill_in_bbox > 0.85:
+            if fill_in_bbox > 0.85:
                 bright_bbox = _shrink_quad(
                     np.array(
                         [[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]],
@@ -130,16 +207,14 @@ def _detect_quad(gray: np.ndarray) -> np.ndarray | None:
 
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blur, 40, 140)
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return bright_bbox if bright_bbox is not None else fill
 
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
-    best: np.ndarray | None = None
-    best_score = float("inf")
-    for cnt in contours[:12]:
+    cands: list[tuple[float, np.ndarray, float, float, float]] = []
+    for cnt in contours:
         area = cv2.contourArea(cnt)
-        if area < img_area * 0.08 or area > img_area * 0.98:
+        if area < img_area * 0.04 or area > img_area * 0.98:
             continue
         peri = cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
@@ -155,17 +230,41 @@ def _detect_quad(gray: np.ndarray) -> np.ndarray | None:
             continue
         qw = float(np.hypot(pts[1, 0] - pts[0, 0], pts[1, 1] - pts[0, 1]))
         qh = float(np.hypot(pts[3, 0] - pts[0, 0], pts[3, 1] - pts[0, 1]))
-        score = abs(np.log((qw / max(qh, 1)) / (63 / 88))) - area / img_area
-        if score < best_score:
-            best_score = score
-            best = pts
+        q_area = qw * qh
+        score = _aspect_score(qw, qh, target) - q_area / img_area
+        cands.append((score, pts, q_area, qw, qh))
 
-    if best is not None:
+    cands.sort(key=lambda c: c[0])
+    if cands:
+        by_area = sorted(cands, key=lambda c: c[2], reverse=True)
+        _ls, largest, _la, lqw, lqh = by_area[0]
+        largest_slabish = _looks_like_slab(lqw, lqh, target) or _has_label_band(gray, largest)
+        if largest_slabish:
+            nested = _find_nested_card(cands, largest, target)
+            if nested is not None:
+                return {"quad": nested, "from_slab": True}
+            return {"reason": "SLAB"}
+        _score, best, _area, qw, qh = cands[0]
+        best_slabish = _looks_like_slab(qw, qh, target) or _has_label_band(gray, best)
+        if best_slabish:
+            nested = _find_nested_card(cands, best, target)
+            if nested is not None:
+                return {"quad": nested, "from_slab": True}
+            return {"reason": "SLAB"}
         return _shrink_quad(best)
 
     if bright_bbox is not None:
-        return bright_bbox
+        bqw = float(np.hypot(bright_bbox[1, 0] - bright_bbox[0, 0], bright_bbox[1, 1] - bright_bbox[0, 1]))
+        bqh = float(np.hypot(bright_bbox[3, 0] - bright_bbox[0, 0], bright_bbox[3, 1] - bright_bbox[0, 1]))
+        if _looks_like_slab(bqw, bqh, target) or _has_label_band(gray, bright_bbox):
+            nested = _find_nested_card(cands, bright_bbox, target)
+            if nested is not None:
+                return {"quad": nested, "from_slab": True}
+            return {"reason": "SLAB"}
+        if _aspect_score(bqw, bqh, target) < 0.35:
+            return bright_bbox
 
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
     x, y, bw, bh = cv2.boundingRect(contours[0])
     if bw * bh > img_area * 0.9:
         return fill
@@ -296,7 +395,7 @@ def _residual_from_borders(a: float, b: float, ua: float, ub: float) -> float:
     if s <= 1e-6:
         return 2.0
     pp = (100.0 / (s * s)) * float(np.hypot(b * ua, a * ub))
-    return float(min(5.0, max(0.2, pp)))
+    return float(min(5.0, max(0.5, pp)))
 
 
 def _confidence_from_spread(residual_lr: float, residual_tb: float) -> float:

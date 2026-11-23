@@ -6,6 +6,8 @@ import {
   bordersFromAxisAligned,
   faceFromBorders,
   formatRatioPair,
+  linesFromAxisAligned,
+  manualUncertaintyPp,
   DEFAULT_POKEMON_PROFILE,
   type FaceReport,
 } from "@mynted/centering-core";
@@ -27,22 +29,32 @@ export function ManualAdjust({
   const imageSrc = faceRectifiedSrc(face);
 
   const initial = useMemo(() => {
-    const b = face.bordersMm;
+    // Prefer saved manual lines when reopening Adjust; else bordersMm.
+    const fromLines = face.lines?.inner;
+    const inner = fromLines
+      ? {
+          L: fromLines.L.x1,
+          R: fromLines.R.x1,
+          T: fromLines.T.y1,
+          B: fromLines.B.y1,
+        }
+      : {
+          L: face.bordersMm.L * px,
+          R: w - face.bordersMm.R * px,
+          T: face.bordersMm.T * px,
+          B: h - face.bordersMm.B * px,
+        };
     return {
       outer: { L: 0, R: w, T: 0, B: h },
-      inner: {
-        L: b.L * px,
-        R: w - b.R * px,
-        T: b.T * px,
-        B: h - b.B * px,
-      },
+      inner,
     };
-  }, [face.bordersMm, h, px, w]);
+  }, [face.bordersMm, face.lines, h, px, w]);
 
   const [inner, setInner] = useState(initial.inner);
   const [active, setActive] = useState<"L" | "R" | "T" | "B">("L");
 
   const borders = bordersFromAxisAligned(initial.outer, inner, px);
+  const lines = linesFromAxisAligned(initial.outer, inner);
   const live = faceFromBorders({
     face: face.face,
     borders,
@@ -50,9 +62,9 @@ export function ManualAdjust({
     manualAdjusted: true,
     captureSource: face.captureSource,
     framesUsed: face.framesUsed,
-    uncertaintyPp: face.uncertaintyPp,
+    uncertaintyPp: manualUncertaintyPp(borders),
     confidence: face.confidence,
-    lines: face.lines,
+    lines,
     quality: face.quality,
   });
 

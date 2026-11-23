@@ -169,4 +169,85 @@ describe("synthetic warped fixtures ±1 pp", () => {
     // Identical-output check: distinct fixtures must not collapse.
     expect(new Set(signatures).size).toBe(cases.length);
   }, 180_000);
+
+  it("reports ± that covers ≥90% of fixture errors and floors at 0.5 pp", async () => {
+    const cv = await loadCv();
+    const cases = JSON.parse(readFileSync(join(generatedDir, "cases.json"), "utf8")) as Array<{
+      id: string;
+      leftPct: number;
+      topPct: number;
+    }>;
+
+    let covered = 0;
+    let total = 0;
+    for (const c of cases) {
+      const path = join(generatedDir, `${c.id}.png`);
+      const img = await loadPngRgba(path);
+      const report = measureImagePixels(cv, img, {
+        face: "FRONT",
+        openCvLoaded: true,
+        captureSource: "UPLOAD",
+      });
+      expect(report.uncertaintyPp.lr).toBeGreaterThanOrEqual(0.5);
+      expect(report.uncertaintyPp.tb).toBeGreaterThanOrEqual(0.5);
+
+      const leftPct =
+        (report.bordersMm.L / (report.bordersMm.L + report.bordersMm.R)) * 100;
+      const topPct =
+        (report.bordersMm.T / (report.bordersMm.T + report.bordersMm.B)) * 100;
+      const errLr = Math.abs(leftPct - c.leftPct);
+      const errTb = Math.abs(topPct - c.topPct);
+      total += 2;
+      if (errLr <= report.uncertaintyPp.lr) covered++;
+      if (errTb <= report.uncertaintyPp.tb) covered++;
+    }
+    expect(covered / total).toBeGreaterThanOrEqual(0.9);
+  }, 180_000);
+});
+
+describe("slab fixtures", () => {
+  beforeAll(() => {
+    execFileSync("node", [join(fixturesDir, "gen-synthetic.mjs")], {
+      stdio: "pipe",
+      cwd: join(__dirname, ".."),
+    });
+  }, 60_000);
+
+  it("never returns OK with slab outer borders; OK±1.5pp or UNSUPPORTED SLAB", async () => {
+    const cv = await loadCv();
+    const cases = JSON.parse(
+      readFileSync(join(generatedDir, "slab-cases.json"), "utf8"),
+    ) as Array<{
+      id: string;
+      leftPct: number;
+      topPct: number;
+    }>;
+
+    for (const c of cases) {
+      const path = join(generatedDir, `${c.id}.png`);
+      expect(existsSync(path)).toBe(true);
+      const img = await loadPngRgba(path);
+      const report = measureImagePixels(cv, img, {
+        face: "FRONT",
+        openCvLoaded: true,
+        captureSource: "UPLOAD",
+      });
+
+      if (report.status === "UNSUPPORTED") {
+        expect(report.quality?.reason, c.id).toBe("SLAB");
+        continue;
+      }
+
+      expect(report.status, c.id).toBe("OK");
+      const leftPct =
+        (report.bordersMm.L / (report.bordersMm.L + report.bordersMm.R)) * 100;
+      const topPct =
+        (report.bordersMm.T / (report.bordersMm.T + report.bordersMm.B)) * 100;
+      expect(Math.abs(leftPct - c.leftPct), `${c.id} LR`).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(topPct - c.topPct), `${c.id} TB`).toBeLessThanOrEqual(1.5);
+      // Card borders are ~1–6 mm; slab outer would yield much larger T from label.
+      expect(report.bordersMm.T, c.id).toBeLessThanOrEqual(6.5);
+      expect(report.bordersMm.B, c.id).toBeLessThanOrEqual(6.5);
+    }
+  }, 180_000);
 });

@@ -83,7 +83,6 @@ a {
   padding: 0.9rem 1.5rem;
   font-weight: 600;
   font-size: 0.95rem;
-  text-transform: capitalize;
   border: none;
   cursor: pointer;
   transition: opacity 0.2s var(--ease), transform 0.15s var(--ease);
@@ -133,7 +132,6 @@ a {
   padding: 0.9rem 1.5rem;
   font-weight: 600;
   font-size: 0.95rem;
-  text-transform: capitalize;
   cursor: pointer;
   transition: background 0.2s var(--ease), transform 0.15s var(--ease);
 }

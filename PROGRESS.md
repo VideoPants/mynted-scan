@@ -1,24 +1,29 @@
 # Progress
 
 ## Status
-- Phases 0–5 complete and merged to `master` (`3d12c82`).
-- Production live at https://mynted-scan.vercel.app — `/api/health` SHA matches HEAD; live accuracy 9/9 ±1.5 pp.
+- Phase: Fix Prompt 3 on `fix/prompt-3` — PR #3 open; accuracy green; build-test re-running after e2e server fix.
+- Done: Phases 1–6 code + commits; Vitest/typecheck/Python green locally; locale e2e green.
 
 ## Decisions
-- Algorithm 1.2.0 with first-edge + contour quad; CI jobs `build-test` + `accuracy` required on `master`.
-- Vercel project Node set to `26.x` (fixes failed deploy on discontinued 20.x).
-- Live Playwright uses `BASE_URL` and skips local webServer.
+- No master merge until `build-test` + `accuracy` green.
+- Residual floor 0.5 pp; slab → nested or `SLAB`; ManualAdjust rebuilds lines.
+- CI Playwright stays on `next dev`; full SW offline gated by `E2E_PROD=1`.
+- Admin UI still needed for branch-protection bypass + Vercel check wait.
 
 ## Open issues
-- None blocking release. Optional: add a Vercel Deployment Check webhook mirroring GitHub `accuracy` if you want alias promotion gated outside GitHub merges.
+- Waiting on CI `build-test` after 75285ea.
+- Live deploy + ACCURACY.md after merge.
 
 ## Next steps
-1. Monitor production for real-card feedback.
-2. Expand real-photo eval sample when labels exist.
-3. Consider caching TCGdex set names in Redis/KV if search volume grows.
+1. Confirm CI green on PR #3.
+2. Merge → deploy → `/api/health` SHA = HEAD.
+3. Live Playwright (accuracy, manual, locale).
+4. Record ACCURACY.md + finalize PROGRESS.md.
+5. Admin: disable branch-protection bypass; Vercel waits for checks.
 
 ## Key files
+- `apps/web/src/components/ManualAdjust.tsx`
+- `apps/web/src/components/LocaleSwitcher.tsx`
 - `packages/centering-core/src/image-pipeline.ts`
-- `ACCURACY.md`
-- `.github/workflows/ci.yml`
-- `apps/web/src/app/api/health/route.ts`
+- `packages/centering-core/src/measure.ts`
+- PR: https://github.com/VideoPants/mynted-scan/pull/3

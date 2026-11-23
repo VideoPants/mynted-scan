@@ -10,9 +10,59 @@ import {
   DEFAULT_POKEMON_PROFILE,
   type BordersMm,
   type CardProfile,
+  type FaceLines,
   type FaceSide,
   type FaceStatus,
 } from "./types.js";
+
+/** Floor for reported ± in percentage points (calibrated for ≥90% coverage). */
+export const RESIDUAL_FLOOR_PP = 0.5;
+export const RESIDUAL_CEILING_PP = 5;
+
+/** Propagate border mm uncertainty into larger-side percentage points. */
+export function residualFromBorders(
+  a: number,
+  b: number,
+  ua: number,
+  ub: number,
+): number {
+  const sum = a + b;
+  if (sum <= 1e-6) return 2.0;
+  const pp = (100 / (sum * sum)) * Math.hypot(b * ua, a * ub);
+  return Math.min(RESIDUAL_CEILING_PP, Math.max(RESIDUAL_FLOOR_PP, pp));
+}
+
+/** Axis-aligned outer/inner edge positions (canonical px) → FaceLines. */
+export function linesFromAxisAligned(
+  outer: { L: number; R: number; T: number; B: number },
+  inner: { L: number; R: number; T: number; B: number },
+): FaceLines {
+  return {
+    outer: {
+      L: { x1: outer.L, y1: outer.T, x2: outer.L, y2: outer.B },
+      R: { x1: outer.R, y1: outer.T, x2: outer.R, y2: outer.B },
+      T: { x1: outer.L, y1: outer.T, x2: outer.R, y2: outer.T },
+      B: { x1: outer.L, y1: outer.B, x2: outer.R, y2: outer.B },
+    },
+    inner: {
+      L: { x1: inner.L, y1: outer.T, x2: inner.L, y2: outer.B },
+      R: { x1: inner.R, y1: outer.T, x2: inner.R, y2: outer.B },
+      T: { x1: outer.L, y1: inner.T, x2: outer.R, y2: inner.T },
+      B: { x1: outer.L, y1: inner.B, x2: outer.R, y2: inner.B },
+    },
+  };
+}
+
+/** Manual nudge uncertainty: 0.1 mm edge error → pp on each axis. */
+export function manualUncertaintyPp(borders: BordersMm, nudgeMm = 0.1): {
+  lr: number;
+  tb: number;
+} {
+  return {
+    lr: residualFromBorders(borders.L, borders.R, nudgeMm, nudgeMm),
+    tb: residualFromBorders(borders.T, borders.B, nudgeMm, nudgeMm),
+  };
+}
 
 export interface MeasureBordersInput {
   face: FaceSide;

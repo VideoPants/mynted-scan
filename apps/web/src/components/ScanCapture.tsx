@@ -20,6 +20,7 @@ const CHECKS: CheckKey[] = ["found", "fill", "tilt", "blur", "glare", "steady"];
 
 export function ScanCapture() {
   const t = useTranslations("scan");
+  const tn = useTranslations("nav");
   const te = useTranslations("errors");
   const router = useRouter();
   const search = useSearchParams();
@@ -214,7 +215,8 @@ export function ScanCapture() {
       ) : (
         <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[var(--radius)] border border-dashed border-black/20 bg-[var(--color-secondary)] px-6 py-16">
           <UploadSimple size={32} />
-          <span className="font-medium">{t("uploadHint")}</span>
+          <span className="font-medium">{t("choosePhoto")}</span>
+          <span className="text-sm text-[var(--color-subtext)]">{t("uploadHint")}</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
@@ -267,7 +269,7 @@ export function ScanCapture() {
           </button>
         )}
         <button type="button" className="btn-secondary" onClick={() => setUseUpload(true)}>
-          {t("uploadHint")}
+          {tn("upload")}
         </button>
         {face === "BACK" && faces.some((f) => f.face === "FRONT") && (
           <button type="button" className="btn-secondary" onClick={skipBack}>

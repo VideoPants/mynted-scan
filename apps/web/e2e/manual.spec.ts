@@ -76,3 +76,69 @@ test("adjust lines and results overlay show non-blank card image", async ({ page
   });
   expect(manualVariance).toBeGreaterThan(50);
 });
+
+test("adjust Done updates overlay lines, borders, and save payload", async ({ page }) => {
+  if (!existsSync(c60)) {
+    execFileSync("node", [join(fixturesRoot, "gen-synthetic.mjs")], { stdio: "pipe" });
+  }
+  expect(existsSync(c60)).toBe(true);
+
+  await page.goto("/en/scan?mode=upload");
+  await page.locator('input[type="file"]').setInputFiles(c60);
+  await page.getByRole("button", { name: /skip back|تخطّي/i }).click({ timeout: 120_000 });
+  await page.waitForURL(/\/results/);
+
+  const bordersBefore = await page.locator(".mono-num").filter({ hasText: /L / }).first().innerText();
+  const leftBefore = await page.getByTestId("overlay-inner-L").evaluate((el) => el.style.left);
+
+  await page.getByRole("button", { name: /Adjust lines|ضبط الخطوط/i }).click();
+  const handleL = page.getByRole("button", { name: "inner L" });
+  await expect(handleL).toBeVisible();
+  const box = await handleL.boundingBox();
+  expect(box).toBeTruthy();
+  const parent = page.locator(".aspect-\\[63\\/88\\]").last();
+  const parentBox = await parent.boundingBox();
+  expect(parentBox).toBeTruthy();
+  // Drag L handle toward the right (~+15% of width).
+  await handleL.dragTo(parent, {
+    targetPosition: {
+      x: (parentBox!.width * 0.25),
+      y: parentBox!.height / 2,
+    },
+  });
+
+  await page.getByRole("button", { name: /Done|تم/i }).click();
+  await expect(page.getByTestId("overlay-inner-L")).toBeVisible();
+
+  const leftAfter = await page.getByTestId("overlay-inner-L").evaluate((el) => el.style.left);
+  const bordersAfter = await page.locator(".mono-num").filter({ hasText: /L / }).first().innerText();
+  expect(leftAfter).not.toBe(leftBefore);
+  expect(bordersAfter).not.toBe(bordersBefore);
+  await expect(page.getByText(/Manually adjusted|معدّل يدويًا/i)).toBeVisible();
+
+  type PostedLines = { inner?: { L?: { x1: number } } };
+  let postedLines: PostedLines | undefined;
+  await page.route("**/api/scans", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON() as {
+        report?: { faces?: Array<{ lines?: PostedLines }> };
+      };
+      postedLines = body.report?.faces?.[0]?.lines;
+    }
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "unauthorized" }),
+    });
+  });
+  await page.getByRole("button", { name: /Save|حفظ/i }).click();
+  expect(postedLines?.inner?.L?.x1).toBeGreaterThan(0);
+  const expectedLeftPct = parseFloat(leftAfter);
+  const postedPct = ((postedLines!.inner!.L!.x1) / 1260) * 100;
+  expect(Math.abs(postedPct - expectedLeftPct)).toBeLessThan(1);
+
+  await page.reload();
+  await page.waitForURL(/\/results/);
+  const leftReload = await page.getByTestId("overlay-inner-L").evaluate((el) => el.style.left);
+  expect(leftReload).toBe(leftAfter);
+});

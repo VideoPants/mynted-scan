@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   buildReport,
   formatRatioPair,
@@ -44,6 +44,7 @@ function FaceOverlay({ face }: { face: FaceReport }) {
       {(["L", "R"] as const).map((side) => (
         <div
           key={`i-${side}`}
+          data-testid={`overlay-inner-${side}`}
           className="absolute top-0 bottom-0 w-0.5 bg-[var(--color-cta)]"
           style={{ left: pct(lines.inner[side].x1, w) }}
         />
@@ -51,6 +52,7 @@ function FaceOverlay({ face }: { face: FaceReport }) {
       {(["T", "B"] as const).map((side) => (
         <div
           key={`i-${side}`}
+          data-testid={`overlay-inner-${side}`}
           className="absolute left-0 right-0 h-0.5 bg-[var(--color-cta)]"
           style={{ top: pct(lines.inner[side].y1, h) }}
         />
@@ -68,11 +70,16 @@ export function ResultsView({
 }) {
   const t = useTranslations("results");
   const ts = useTranslations("status");
+  const router = useRouter();
   const [report, setReport] = useState<CenteringReport | null>(initialReport ?? null);
   const [faces, setFaces] = useState<FaceReport[]>(initialReport?.faces ?? []);
   const [manualFace, setManualFace] = useState<FaceReport | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const goSignIn = () => {
+    router.push({ pathname: "/sign-in", query: { next: "/results" } });
+  };
 
   useEffect(() => {
     if (initialReport) return;
@@ -124,7 +131,7 @@ export function ResultsView({
     });
     if (res.status === 401) {
       setSaveMsg(t("save"));
-      window.location.href = "/en/sign-in?next=/results";
+      goSignIn();
       return;
     }
     if (!res.ok) {
@@ -142,7 +149,7 @@ export function ResultsView({
       body: JSON.stringify({ report, share: true }),
     });
     if (res.status === 401) {
-      window.location.href = "/en/sign-in?next=/results";
+      goSignIn();
       return;
     }
     const data = (await res.json()) as { shareUrl?: string };
@@ -179,7 +186,9 @@ export function ResultsView({
             </div>
 
             {unsupported ? (
-              <p className="text-sm text-[var(--color-subtext)]">{t("couldntMeasure")}</p>
+              <p className="text-sm text-[var(--color-subtext)]">
+                {face.quality?.reason === "SLAB" ? t("slabUnsupported") : t("couldntMeasure")}
+              </p>
             ) : (
               <>
                 {low && (
@@ -195,7 +204,11 @@ export function ResultsView({
                       <span> ± {face.uncertaintyPp.lr.toFixed(1)}</span>
                     </p>
                     <p className="text-xs text-[var(--color-subtext)]">
-                      {t("wider", { side: face.lrRatio.wider })}
+                      {t("wider", {
+                        side: t(
+                          `side${face.lrRatio.wider}` as "sideL" | "sideR" | "sideT" | "sideB",
+                        ),
+                      })}
                     </p>
                   </div>
                   <div>
@@ -207,8 +220,9 @@ export function ResultsView({
                   </div>
                 </div>
                 <p className="mono-num text-sm" dir="ltr">
-                  {t("borders")}: L {face.bordersMm.L.toFixed(2)} · R {face.bordersMm.R.toFixed(2)} ·
-                  T {face.bordersMm.T.toFixed(2)} · B {face.bordersMm.B.toFixed(2)}
+                  {t("borders")}: {t("sideL")} {face.bordersMm.L.toFixed(2)} · {t("sideR")}{" "}
+                  {face.bordersMm.R.toFixed(2)} · {t("sideT")} {face.bordersMm.T.toFixed(2)} ·{" "}
+                  {t("sideB")} {face.bordersMm.B.toFixed(2)}
                 </p>
                 <FaceOverlay face={face} />
               </>

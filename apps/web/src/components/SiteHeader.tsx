@@ -1,11 +1,11 @@
 import Image from "next/image";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { Link } from "@/i18n/navigation";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
 export async function SiteHeader({ signedIn }: { signedIn: boolean }) {
   const t = await getTranslations("nav");
-  const locale = await getLocale();
-  const other = locale === "en" ? "ar" : "en";
 
   return (
     <header
@@ -50,13 +50,9 @@ export async function SiteHeader({ signedIn }: { signedIn: boolean }) {
               {t("signIn")}
             </Link>
           )}
-          <Link
-            href="/"
-            locale={other}
-            className="rounded-[var(--radius)] border border-[var(--color-border)] px-2 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-subtext)]"
-          >
-            {other}
-          </Link>
+          <Suspense fallback={null}>
+            <LocaleSwitcher />
+          </Suspense>
           <a
             href="https://mynted.me/"
             className="btn-ink ms-1 hidden whitespace-nowrap sm:inline-flex"
