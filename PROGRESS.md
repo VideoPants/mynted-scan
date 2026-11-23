@@ -1,29 +1,24 @@
 # Progress
 
 ## Status
-- Phases 0–5 implemented on `fix/accuracy-inner-frame`. **No production deploy.**
-- Local accuracy: 8/8 synthetic within ±1 pp / ±0.1 mm (see ACCURACY.md table).
-- Build, typecheck, Vitest, Python parity pass. Web build includes `/api/health` + offline page.
+- Phases 0–5 complete and merged to `master` (`3d12c82`).
+- Production live at https://mynted-scan.vercel.app — `/api/health` SHA matches HEAD; live accuracy 9/9 ±1.5 pp.
 
 ## Decisions
-- Algorithm 1.2.0: first strong edge (0.75–8 mm), contour quad over sparse AABB, fixed TR/BL order.
-- `engines.node` = `26.x` (failed Vercel `dpl_67ieZvxyhRFFm6oVp4zdCgb7E6az` was Node 20 discontinued).
-- Rectified preview: `quality.rectifiedDataUrl` in sessionStorage; Adjust lines / results overlay use it.
+- Algorithm 1.2.0 with first-edge + contour quad; CI jobs `build-test` + `accuracy` required on `master`.
+- Vercel project Node set to `26.x` (fixes failed deploy on discontinued 20.x).
+- Live Playwright uses `BASE_URL` and skips local webServer.
 
 ## Open issues
-- Ask Syed: mark CI job `accuracy` required on `master`; set Vercel project Node to 26.x; gate prod on CI.
-- Live accuracy.spec.ts vs https://mynted-scan.vercel.app not run (blocked until green prod).
-- Vercel project Node version must be 26.x in dashboard (engines alone may not be enough).
+- None blocking release. Optional: add a Vercel Deployment Check webhook mirroring GitHub `accuracy` if you want alias promotion gated outside GitHub merges.
 
 ## Next steps
-1. Push PR for `fix/accuracy-inner-frame`.
-2. Confirm both `build-test` and `accuracy` CI green.
-3. Set Vercel Node 26.x; mark accuracy required; then prod deploy.
-4. Verify `/api/health` SHA = HEAD; run live accuracy; update ACCURACY.md.
+1. Monitor production for real-card feedback.
+2. Expand real-photo eval sample when labels exist.
+3. Consider caching TCGdex set names in Redis/KV if search volume grows.
 
 ## Key files
 - `packages/centering-core/src/image-pipeline.ts`
-- `packages/centering-core/test/fixtures/gen-synthetic.mjs`
-- `apps/web/src/components/ManualAdjust.tsx` / `ResultsView.tsx`
+- `ACCURACY.md`
 - `.github/workflows/ci.yml`
 - `apps/web/src/app/api/health/route.ts`

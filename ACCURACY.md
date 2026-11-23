@@ -25,7 +25,17 @@ Measured on 2026-11-23 via `node packages/centering-core/scripts/measure-png.mjs
 | c45_65 | 45/55 | 44.9/55.1 | 65/35 | 65.2/34.8 | OK | -0.1 | 0.2 |
 | prev-60-40 | 60/40 | 60.2/39.8 | 50/50 | 50.0/50.0 | OK | 0.2 | 0.0 |
 
-All within ±1 pp locally. Live ±1.5 pp table pending production deploy after CI green.
+All within ±1 pp locally.
+
+### Live gate (production)
+
+Measured on 2026-11-23 against `https://mynted-scan.vercel.app` at SHA `3d12c82` / algorithm `1.2.0`:
+
+```bash
+BASE_URL=https://mynted-scan.vercel.app npx playwright test e2e/accuracy.spec.ts
+```
+
+Result: **9/9 passed** (8 uploads within ±1.5 pp + identical-output check). `/api/health` returned `{ sha: 3d12c82…, algorithmVersion: "1.2.0" }` matching `master` HEAD.
 
 ## Synthetic (exact ground truth) — prior harness
 
