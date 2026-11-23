@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { CheckCircle, Circle, Camera, UploadSimple } from "@phosphor-icons/react";
 import type { FaceReport, FaceSide } from "@mynted/centering-core";
-import { loadImageSize, measureImageMeta } from "@/lib/measure-client";
+import { loadImageBitmap, measureImageBitmap } from "@/lib/measure-client";
 import { saveDraft } from "@/lib/session-scan";
 
 type CheckKey = "found" | "fill" | "tilt" | "blur" | "glare" | "steady";
@@ -91,12 +91,13 @@ export function ScanCapture() {
     setProcessing(true);
     setError(null);
     try {
-      const { width, height, url } = await loadImageSize(file);
+      const { bitmap, url, width, height } = await loadImageBitmap(file);
       if (width < 200 || height < 200) {
+        bitmap.close();
         setError(te("tooSmall"));
         return;
       }
-      const result = await measureImageMeta(which, width, height, "UPLOAD");
+      const result = await measureImageBitmap(which, bitmap, "UPLOAD", 1);
       const nextFaces = [...faces.filter((f) => f.face !== which), result];
       const nextUrls = { ...imageUrls, [which]: url };
       setFaces(nextFaces);
@@ -108,7 +109,9 @@ export function ScanCapture() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "generic";
-      setError(msg === "noCard" ? te("noCard") : te("generic"));
+      if (msg === "noCard") setError(te("noCard"));
+      else if (msg === "tooSmall") setError(te("tooSmall"));
+      else setError(te("generic"));
     } finally {
       setProcessing(false);
     }
@@ -125,12 +128,12 @@ export function ScanCapture() {
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("canvas");
+      // Phase 5 will capture 5–8 frames; for now measure one real frame honestly.
       ctx.drawImage(video, 0, 0);
       const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.92));
       if (!blob) throw new Error("blob");
-      const url = URL.createObjectURL(blob);
-      const result = await measureImageMeta(face, canvas.width, canvas.height, "CAMERA");
-      result.framesUsed = 5;
+      const { bitmap, url } = await loadImageBitmap(blob);
+      const result = await measureImageBitmap(face, bitmap, "CAMERA", 1);
       const nextFaces = [...faces.filter((f) => f.face !== face), result];
       const nextUrls = { ...imageUrls, [face]: url };
       setFaces(nextFaces);

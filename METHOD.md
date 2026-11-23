@@ -1,6 +1,6 @@
 # METHOD — MyntedScan centering pipeline
 
-Algorithm version: `1.0.0` (bump when results would change).
+Algorithm version: `1.1.0` (bump when results would change).
 
 ## Definitions
 

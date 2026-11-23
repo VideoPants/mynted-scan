@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "prebuild": "node ../../scripts/copy-opencv.mjs && npm run build -w @mynted/centering-core",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
@@ -13,7 +14,7 @@
     "db:migrate": "prisma migrate deploy && prisma generate",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && node ../../scripts/copy-opencv.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -24,6 +25,7 @@
     "@mynted/centering-core": "*",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.19.3",
+    "@techstark/opencv-js": "^5.0.0-release.1",
     "bcryptjs": "^3.0.3",
     "next": "^15.5.29",
     "next-auth": "^5.0.0-beta.29",
@@ -39,6 +41,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "prisma": "^6.19.3",

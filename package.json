@@ -8,8 +8,9 @@
   ],
   "scripts": {
     "setup": "node scripts/setup.mjs",
-    "dev": "node scripts/predev.mjs && npm run dev -w @mynted/web",
-    "build": "npm run build -w @mynted/centering-core && npm run build -w @mynted/card-id && npm run build -w @mynted/web",
+    "opencv:copy": "node scripts/copy-opencv.mjs",
+    "dev": "node scripts/predev.mjs && node scripts/copy-opencv.mjs && npm run build -w @mynted/centering-core && npm run dev -w @mynted/web",
+    "build": "node scripts/copy-opencv.mjs && npm run build -w @mynted/centering-core && npm run build -w @mynted/card-id && npm run build -w @mynted/web",
     "lint": "npm run lint -w @mynted/web",
     "typecheck": "npm run typecheck -w @mynted/centering-core && npm run typecheck -w @mynted/card-id && npm run typecheck -w @mynted/web",
     "test": "npm run test -w @mynted/centering-core && npm run test -w @mynted/web",

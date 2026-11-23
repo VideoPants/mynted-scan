@@ -24,6 +24,7 @@ data/generated/
 data/real/
 data/index/
 apps/web/public/opencv/
+apps/web/public/workers/measure-core.js
 apps/web/public/index/
 model-cache/
 .prisma/

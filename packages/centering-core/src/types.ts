@@ -59,4 +59,4 @@ export const DEFAULT_POKEMON_PROFILE: CardProfile = {
   printSkewWarnDeg: 0.5,
 };
 
-export const ALGORITHM_VERSION = "1.0.0";
+export const ALGORITHM_VERSION = "1.1.0";

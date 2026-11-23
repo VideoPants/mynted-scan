@@ -5,6 +5,7 @@ type WorkerResponse = {
   ok: boolean;
   result?: FaceReport;
   error?: string;
+  rectifiedBlob?: Blob;
 };
 
 let worker: Worker | null = null;
@@ -17,7 +18,11 @@ function getWorker(): Worker {
   return worker;
 }
 
-function callWorker<T>(type: string, payload: unknown): Promise<T> {
+function callWorker<T>(
+  type: string,
+  payload: unknown,
+  transfer?: Transferable[],
+): Promise<T> {
   const id = `m-${++seq}`;
   const w = getWorker();
   return new Promise((resolve, reject) => {
@@ -28,10 +33,17 @@ function callWorker<T>(type: string, payload: unknown): Promise<T> {
         reject(new Error(event.data.error || "measure_failed"));
         return;
       }
-      resolve(event.data.result as T);
+      const result = event.data.result as FaceReport & { rectifiedUrl?: string };
+      if (event.data.rectifiedBlob) {
+        result.quality = {
+          ...(result.quality ?? {}),
+          rectifiedUrl: URL.createObjectURL(event.data.rectifiedBlob),
+        };
+      }
+      resolve(result as T);
     };
     w.addEventListener("message", onMessage);
-    w.postMessage({ id, type, payload });
+    w.postMessage({ id, type, payload }, transfer ?? []);
   });
 }
 
@@ -43,19 +55,57 @@ export function measureFromBorders(
   return callWorker("measureFromBorders", { face, borders, opts });
 }
 
+/** @deprecated Prefer measureImageBitmap — width/height alone cannot measure. */
 export function measureImageMeta(
-  face: FaceSide,
-  width: number,
-  height: number,
-  captureSource: FaceReport["captureSource"],
+  _face: FaceSide,
+  _width: number,
+  _height: number,
+  _captureSource: FaceReport["captureSource"],
 ): Promise<FaceReport> {
-  return callWorker("measureImage", { face, width, height, captureSource });
+  return Promise.reject(new Error("pixels_required"));
 }
 
-export async function loadImageSize(file: File): Promise<{ width: number; height: number; url: string }> {
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  return { width: img.naturalWidth, height: img.naturalHeight, url };
+export async function measureImageBitmap(
+  face: FaceSide,
+  bitmap: ImageBitmap,
+  captureSource: FaceReport["captureSource"],
+  framesUsed = 1,
+): Promise<FaceReport> {
+  return callWorker<FaceReport>(
+    "measureImage",
+    {
+      face,
+      bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      captureSource,
+      framesUsed,
+    },
+    [bitmap],
+  );
+}
+
+export async function loadImageBitmap(
+  source: File | Blob | ImageBitmap,
+): Promise<{ bitmap: ImageBitmap; url: string; width: number; height: number }> {
+  if (typeof ImageBitmap !== "undefined" && source instanceof ImageBitmap) {
+    return {
+      bitmap: source,
+      url: "",
+      width: source.width,
+      height: source.height,
+    };
+  }
+  const blob = source as Blob;
+  const url = URL.createObjectURL(blob);
+  const bitmap = await createImageBitmap(blob);
+  return { bitmap, url, width: bitmap.width, height: bitmap.height };
+}
+
+/** @deprecated use loadImageBitmap */
+export async function loadImageSize(
+  file: File,
+): Promise<{ width: number; height: number; url: string }> {
+  const { width, height, url } = await loadImageBitmap(file);
+  return { width, height, url };
 }
