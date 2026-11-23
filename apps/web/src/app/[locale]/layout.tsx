@@ -4,6 +4,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { Providers } from "@/components/Providers";
+import { RegisterPWA } from "@/components/RegisterPWA";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { auth } from "@/lib/auth";
@@ -35,6 +36,7 @@ export default async function LocaleLayout({
       <body className="site-atmosphere flex min-h-[100dvh] flex-col antialiased">
         <NextIntlClientProvider messages={messages}>
           <Providers>
+            <RegisterPWA />
             <SiteHeader signedIn={signedIn} />
             <main className="page-shell w-full flex-1 py-6 md:py-8">{children}</main>
             <SiteFooter />

@@ -59,12 +59,14 @@ export default async function HomePage({
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg bg-[var(--color-secondary)] px-3 py-2">
-              <p className="text-[var(--color-subtext)]">L / R</p>
-              <p className="mono-num font-semibold">53.2 / 46.8</p>
+              <p className="text-[var(--color-subtext)]">{t("previewLr")}</p>
+              <p className="mono-num font-semibold" dir="ltr">
+                53.2 / 46.8
+              </p>
             </div>
             <div className="rounded-lg bg-[var(--color-secondary)] px-3 py-2">
-              <p className="text-[var(--color-subtext)]">Ceiling</p>
-              <p className="font-semibold">PSA 10 band</p>
+              <p className="text-[var(--color-subtext)]">{t("previewCeiling")}</p>
+              <p className="font-semibold">{t("previewPsaBand")}</p>
             </div>
           </div>
         </div>

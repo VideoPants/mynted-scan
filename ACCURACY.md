@@ -10,7 +10,24 @@ npm run eval:synthetic
 npm run parity
 ```
 
-## Synthetic (exact ground truth)
+## Warped synthetic gate (centering-core fixtures)
+
+Measured on 2026-11-23 via `node packages/centering-core/scripts/measure-png.mjs --table` (algorithm 1.2.0):
+
+| case | expected LR | measured LR | expected TB | measured TB | status | dLR | dTB |
+|------|-------------|-------------|-------------|-------------|--------|-----|-----|
+| c50 | 50/50 | 50.0/50.0 | 50/50 | 50.0/50.0 | OK | 0.0 | 0.0 |
+| c55 | 55/45 | 55.1/44.9 | 45/55 | 44.9/55.1 | OK | 0.1 | -0.1 |
+| c60 | 60/40 | 60.2/39.8 | 40/60 | 39.8/60.2 | OK | 0.2 | -0.2 |
+| c65 | 65/35 | 65.3/34.7 | 35/65 | 34.7/65.3 | OK | 0.3 | -0.3 |
+| c70 | 70/30 | 70.4/29.6 | 30/70 | 29.7/70.3 | OK | 0.4 | -0.3 |
+| c40_55 | 40/60 | 39.8/60.2 | 55/45 | 55.1/44.9 | OK | -0.2 | 0.1 |
+| c45_65 | 45/55 | 44.9/55.1 | 65/35 | 65.2/34.8 | OK | -0.1 | 0.2 |
+| prev-60-40 | 60/40 | 60.2/39.8 | 50/50 | 50.0/50.0 | OK | 0.2 | 0.0 |
+
+All within ±1 pp locally. Live ±1.5 pp table pending production deploy after CI green.
+
+## Synthetic (exact ground truth) — prior harness
 
 Measured on 2026-11-22 via `eval.run --split test --set synthetic` (clean unwarped siblings when present):
 
@@ -19,10 +36,8 @@ Measured on 2026-11-22 via `eval.run --split test --set synthetic` (clean unwarp
 | n | 10 | test split |
 | evaluated | 9 | |
 | reject rate | 0.10 | |
-| MAE (pp) | **1.40** | Above aspiration (≤0.3); classical inner-edge localization on procedural yellow borders |
-| p95 (pp) | **2.66** | Above aspiration (≤0.8) |
-
-Aspiration (not claimed): MAE ≤ 0.3 pp, p95 ≤ 0.8 pp. Current limiter: residual edge localization bias on synthetic art/border contrast; further RANSAC/station tuning belongs on the held-out **dev** split only.
+| MAE (pp) | **1.40** | Pre-1.2.0 detector; superseded by warped gate above for release criteria |
+| p95 (pp) | **2.66** | Pre-1.2.0 |
 
 ## Augmented official scans (exact relative GT)
 

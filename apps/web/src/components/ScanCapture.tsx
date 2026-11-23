@@ -6,8 +6,13 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { CheckCircle, Circle, Camera, UploadSimple } from "@phosphor-icons/react";
 import type { FaceReport, FaceSide } from "@mynted/centering-core";
+import { averageBurstFaces } from "@/lib/burst-average";
 import { loadImageBitmap, measureImageBitmap } from "@/lib/measure-client";
-import { saveDraft } from "@/lib/session-scan";
+import { faceRectifiedSrc, saveDraft } from "@/lib/session-scan";
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 type CheckKey = "found" | "fill" | "tilt" | "blur" | "glare" | "steady";
 
@@ -128,14 +133,40 @@ export function ScanCapture() {
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("canvas");
-      // Phase 5 will capture 5–8 frames; for now measure one real frame honestly.
-      ctx.drawImage(video, 0, 0);
-      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-      if (!blob) throw new Error("blob");
-      const { bitmap, url } = await loadImageBitmap(blob);
-      const result = await measureImageBitmap(face, bitmap, "CAMERA", 1);
+
+      const frameCount = 6;
+      const measured: FaceReport[] = [];
+      let previewUrl = "";
+      for (let i = 0; i < frameCount; i++) {
+        ctx.drawImage(video, 0, 0);
+        const blob = await new Promise<Blob | null>((res) =>
+          canvas.toBlob(res, "image/jpeg", 0.92),
+        );
+        if (!blob) continue;
+        const { bitmap, url } = await loadImageBitmap(blob);
+        if (!previewUrl) previewUrl = url;
+        else URL.revokeObjectURL(url);
+        try {
+          const report = await measureImageBitmap(face, bitmap, "CAMERA", 1);
+          measured.push(report);
+        } catch {
+          bitmap.close?.();
+        }
+        if (i < frameCount - 1) await sleep(120);
+      }
+      if (measured.length === 0) throw new Error("measure_failed");
+      const result = averageBurstFaces(measured);
+      // Prefer last successful frame's rectified assets if median dropped quality
+      const withImage =
+        measured.find((m) => Boolean(faceRectifiedSrc(m))) ?? measured[measured.length - 1]!;
+      result.quality = {
+        ...(result.quality ?? {}),
+        ...(withImage.quality ?? {}),
+        framesUsed: result.framesUsed,
+      };
+
       const nextFaces = [...faces.filter((f) => f.face !== face), result];
-      const nextUrls = { ...imageUrls, [face]: url };
+      const nextUrls = { ...imageUrls, [face]: previewUrl };
       setFaces(nextFaces);
       setImageUrls(nextUrls);
       if (face === "FRONT") {

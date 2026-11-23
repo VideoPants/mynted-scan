@@ -10,10 +10,16 @@
     "signUp": "إنشاء حساب",
     "signOut": "تسجيل الخروج",
     "backToMynted": "العودة إلى MYNTED",
-    "upload": "رفع بدلًا من ذلك"
+    "backShort": "MYNTED",
+    "upload": "رفع بدلًا من ذلك",
+    "home": "الرئيسية",
+    "shop": "المتجر"
   },
   "home": {
     "product": "Scan",
+    "previewLr": "ي / ش",
+    "previewCeiling": "السقف",
+    "previewPsaBand": "نطاق PSA 10",
     "headlineBefore": "قِس",
     "headlineAccent": "تمركز",
     "headlineAfter": "البطاقة من هاتفك.",
@@ -60,13 +66,26 @@
     "tips": "نصائح",
     "frontOnly": "أمامي فقط",
     "wider": "أوسع على {side}",
-    "disclaimer": "MyntedScan أداة من MYNTED. غير تابعة لـ PSA أو CGC أو Beckett أو TAG أو The Pokémon Company. النتائج سقوف تمركز مع عدم يقين وليست درجات."
+    "disclaimer": "MyntedScan أداة من MYNTED. غير تابعة لـ PSA أو CGC أو Beckett أو TAG أو The Pokémon Company. النتائج سقوف تمركز مع عدم يقين وليست درجات.",
+    "couldntMeasure": "تعذّر القياس، اضبط الخطوط يدويًا",
+    "lowConfidenceWarn": "ثقة منخفضة — تُعرض النسب دون سقوف الشركات.",
+    "faceFront": "أمامي",
+    "faceBack": "خلفي",
+    "company": "الشركة",
+    "colFront": "أمامي",
+    "colBack": "خلفي",
+    "colOverall": "الإجمالي",
+    "noResult": "لا توجد نتيجة بعد.",
+    "scanCta": "مسح",
+    "saveFailed": "فشل الحفظ"
   },
   "manual": {
     "title": "ضبط الخطوط",
     "hint": "اسحب الخطوط أو حرّكها بأسهم لوحة المفاتيح (0.1 مم). إعادة الضبط تعيد الكاشف.",
     "reset": "إعادة الضبط",
-    "done": "تم"
+    "done": "تم",
+    "cancel": "إلغاء",
+    "reupload": "أعد الرفع للضبط"
   },
   "cardPicker": {
     "title": "ابحث عن بطاقتك",
@@ -114,5 +133,10 @@
     "LOW_CONFIDENCE": "ثقة منخفضة",
     "UNSUPPORTED": "غير مدعوم — اضبط يدويًا",
     "MANUAL": "معدّل يدويًا"
+  },
+  "offline": {
+    "title": "أنت غير متصل",
+    "body": "يعمل MyntedScan دون اتصال للقياس بعد تخزين الأصول. أعد الاتصال لمزامنة السجل.",
+    "cta": "العودة للمسح"
   }
 }
