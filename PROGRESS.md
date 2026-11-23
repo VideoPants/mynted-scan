@@ -1,29 +1,29 @@
 # Progress
 
 ## Status
-- Phase: Fix Prompt 3 on `fix/prompt-3` — Phases 1–6 implemented; shipping next.
-- Done: ManualAdjust lines + ±, LocaleSwitcher, slab SLAB reason, residual floor 0.5 + coverage Vitest, offline SW locale fallback, AR sides/product, set-name map, upload label.
+- Phase: Fix Prompt 3 on `fix/prompt-3` — PR #3 open; accuracy green; build-test re-running after e2e server fix.
+- Done: Phases 1–6 code + commits; Vitest/typecheck/Python green locally; locale e2e green.
 
 ## Decisions
-- Feature branch only until Vitest/Playwright/`accuracy` green.
-- Manual ± from 0.1 mm nudge via shared `residualFromBorders` (floor 0.5 pp).
-- Slab: largest slab-like outer → nested card or `UNSUPPORTED`/`SLAB`; failed nested measure remaps to SLAB.
-- Slab fixtures scaled to fit canvas; no committed card art.
+- No master merge until `build-test` + `accuracy` green.
+- Residual floor 0.5 pp; slab → nested or `SLAB`; ManualAdjust rebuilds lines.
+- CI Playwright stays on `next dev`; full SW offline gated by `E2E_PROD=1`.
+- Admin UI still needed for branch-protection bypass + Vercel check wait.
 
 ## Open issues
-- Branch protection “do not allow bypassing” + Vercel deploy-wait-for-checks need admin UI.
-- Phase 7: CI green → merge → live Playwright → ACCURACY.md.
+- Waiting on CI `build-test` after 75285ea.
+- Live deploy + ACCURACY.md after merge.
 
 ## Next steps
-1. Typecheck + web e2e locally / push PR.
-2. Merge when CI green; confirm `/api/health` SHA.
-3. Live Playwright (accuracy, manual, locale, offline, slab).
-4. Admin: GitHub bypass off + Vercel check gate.
-5. Update ACCURACY.md + PROGRESS.md post-deploy.
+1. Confirm CI green on PR #3.
+2. Merge → deploy → `/api/health` SHA = HEAD.
+3. Live Playwright (accuracy, manual, locale).
+4. Record ACCURACY.md + finalize PROGRESS.md.
+5. Admin: disable branch-protection bypass; Vercel waits for checks.
 
 ## Key files
 - `apps/web/src/components/ManualAdjust.tsx`
 - `apps/web/src/components/LocaleSwitcher.tsx`
 - `packages/centering-core/src/image-pipeline.ts`
 - `packages/centering-core/src/measure.ts`
-- `services/measure-py/app/measure.py`
+- PR: https://github.com/VideoPants/mynted-scan/pull/3
