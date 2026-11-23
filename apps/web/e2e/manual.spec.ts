@@ -1,11 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { test, expect } from "@playwright/test";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturesRoot = join(__dirname, "../../../packages/centering-core/test/fixtures");
+// Playwright loads specs as CJS unless package type=module; avoid import.meta.
+const fixturesRoot = join(process.cwd(), "../../packages/centering-core/test/fixtures");
 const c60 = join(fixturesRoot, "generated/c60.png");
 
 test("manual adjust updates ratio display", async ({ page }) => {
