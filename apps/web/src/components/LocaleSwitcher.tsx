@@ -24,6 +24,7 @@ export function LocaleSwitcher() {
       type="button"
       onClick={onSwitch}
       data-testid="locale-switcher"
+      data-locale={other}
       className="rounded-[var(--radius)] border border-[var(--color-border)] px-2 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-subtext)]"
     >
       {other}

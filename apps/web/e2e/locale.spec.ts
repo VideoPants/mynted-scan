@@ -13,7 +13,7 @@ for (const path of paths) {
     const before = new URL(page.url());
     const switcher = page.getByTestId("locale-switcher");
     await expect(switcher).toBeVisible();
-    const target = await switcher.innerText();
+    const target = (await switcher.innerText()).trim().toLowerCase();
     await switcher.click();
     await page.waitForURL((url) => url.pathname.startsWith(`/${target}`));
     const after = new URL(page.url());
