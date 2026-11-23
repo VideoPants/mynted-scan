@@ -9,10 +9,10 @@ export async function SiteHeader({ signedIn }: { signedIn: boolean }) {
 
   return (
     <header
-      className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-white"
+      className="sticky top-0 z-30 box-border flex h-[var(--header-h)] items-center border-b border-[var(--color-border)] bg-white"
       data-testid="site-header"
     >
-      <div className="page-shell flex h-[var(--header-h)] items-center justify-between gap-3">
+      <div className="page-shell flex h-full w-full items-center justify-between gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-2.5">
           <Image
             src="/brand/mynted-logo.png"

@@ -22,7 +22,7 @@ function FaceOverlay({ face }: { face: FaceReport }) {
   const pct = (v: number, dim: number) => `${(v / dim) * 100}%`;
   return (
     <div
-      className="relative mx-auto mt-3 aspect-[63/88] w-full max-w-[12rem] overflow-hidden bg-[var(--color-secondary)]"
+      className="relative mx-auto mt-3 aspect-[63/88] w-full max-w-xs overflow-hidden bg-[var(--color-secondary)]"
       data-testid="results-rectified"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
