@@ -1,24 +1,29 @@
 # Progress
 
 ## Status
-- Phases 0–5 complete and merged to `master` (`3d12c82`).
-- Production live at https://mynted-scan.vercel.app — `/api/health` SHA matches HEAD; live accuracy 9/9 ±1.5 pp.
+- Phase: Fix Prompt 3 on `fix/prompt-3` — Phases 1–6 implemented; shipping next.
+- Done: ManualAdjust lines + ±, LocaleSwitcher, slab SLAB reason, residual floor 0.5 + coverage Vitest, offline SW locale fallback, AR sides/product, set-name map, upload label.
 
 ## Decisions
-- Algorithm 1.2.0 with first-edge + contour quad; CI jobs `build-test` + `accuracy` required on `master`.
-- Vercel project Node set to `26.x` (fixes failed deploy on discontinued 20.x).
-- Live Playwright uses `BASE_URL` and skips local webServer.
+- Feature branch only until Vitest/Playwright/`accuracy` green.
+- Manual ± from 0.1 mm nudge via shared `residualFromBorders` (floor 0.5 pp).
+- Slab: largest slab-like outer → nested card or `UNSUPPORTED`/`SLAB`; failed nested measure remaps to SLAB.
+- Slab fixtures scaled to fit canvas; no committed card art.
 
 ## Open issues
-- None blocking release. Optional: add a Vercel Deployment Check webhook mirroring GitHub `accuracy` if you want alias promotion gated outside GitHub merges.
+- Branch protection “do not allow bypassing” + Vercel deploy-wait-for-checks need admin UI.
+- Phase 7: CI green → merge → live Playwright → ACCURACY.md.
 
 ## Next steps
-1. Monitor production for real-card feedback.
-2. Expand real-photo eval sample when labels exist.
-3. Consider caching TCGdex set names in Redis/KV if search volume grows.
+1. Typecheck + web e2e locally / push PR.
+2. Merge when CI green; confirm `/api/health` SHA.
+3. Live Playwright (accuracy, manual, locale, offline, slab).
+4. Admin: GitHub bypass off + Vercel check gate.
+5. Update ACCURACY.md + PROGRESS.md post-deploy.
 
 ## Key files
+- `apps/web/src/components/ManualAdjust.tsx`
+- `apps/web/src/components/LocaleSwitcher.tsx`
 - `packages/centering-core/src/image-pipeline.ts`
-- `ACCURACY.md`
-- `.github/workflows/ci.yml`
-- `apps/web/src/app/api/health/route.ts`
+- `packages/centering-core/src/measure.ts`
+- `services/measure-py/app/measure.py`

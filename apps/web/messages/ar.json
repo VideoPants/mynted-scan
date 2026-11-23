@@ -16,7 +16,7 @@
     "shop": "المتجر"
   },
   "home": {
-    "product": "Scan",
+    "product": "مسح",
     "previewLr": "ي / ش",
     "previewCeiling": "السقف",
     "previewPsaBand": "نطاق PSA 10",
@@ -46,7 +46,8 @@
     "shutter": "التقاط",
     "processing": "جارٍ قياس التمركز…",
     "permissionDenied": "تم رفض إذن الكاميرا. يمكنك رفع الصور بدلًا من ذلك.",
-    "uploadHint": "JPEG أو PNG أو HEIC (إن دعمها المتصفح)."
+    "uploadHint": "JPEG أو PNG أو HEIC (إن دعمها المتصفح).",
+    "choosePhoto": "اختر صورة"
   },
   "results": {
     "title": "نتيجة التمركز",
@@ -68,6 +69,11 @@
     "wider": "أوسع على {side}",
     "disclaimer": "MyntedScan أداة من MYNTED. غير تابعة لـ PSA أو CGC أو Beckett أو TAG أو The Pokémon Company. النتائج سقوف تمركز مع عدم يقين وليست درجات.",
     "couldntMeasure": "تعذّر القياس، اضبط الخطوط يدويًا",
+    "slabUnsupported": "أزل البطاقة من العلبة أو اقتص على البطاقة",
+    "sideL": "يسار",
+    "sideR": "يمين",
+    "sideT": "أعلى",
+    "sideB": "أسفل",
     "lowConfidenceWarn": "ثقة منخفضة — تُعرض النسب دون سقوف الشركات.",
     "faceFront": "أمامي",
     "faceBack": "خلفي",

@@ -15,7 +15,8 @@ export default defineConfig({
   webServer: isRemote
     ? undefined
     : {
-        command: "npm run dev",
+        // CI builds first then starts production so the service worker is active.
+        command: process.env.CI ? "npm run start" : "npm run dev",
         url: "http://127.0.0.1:3000",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

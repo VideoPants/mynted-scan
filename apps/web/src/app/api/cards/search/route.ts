@@ -11,6 +11,33 @@ type TcgCard = {
 const setNameCache = new Map<string, { name: string; expires: number }>();
 const SET_TTL_MS = 1000 * 60 * 60 * 12;
 
+/** Readable fallbacks when TCGdex returns only a short set code. */
+const KNOWN_SET_NAMES: Record<string, string> = {
+  tk: "Trainer Kit",
+  base1: "Base Set",
+  base2: "Base Set 2",
+  base3: "Fossil",
+  base4: "Base Set 2",
+  base5: "Team Rocket",
+  swsh1: "Sword & Shield",
+  swsh2: "Rebel Clash",
+  swsh3: "Darkness Ablaze",
+};
+
+function humanizeSetId(setId: string): string {
+  const known = KNOWN_SET_NAMES[setId.toLowerCase()];
+  if (known) return known;
+  return setId
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function displaySetName(setId: string, resolved?: string | null): string {
+  const name = resolved?.trim();
+  if (name && name.toLowerCase() !== setId.toLowerCase()) return name;
+  return humanizeSetId(setId);
+}
+
 async function resolveSetName(base: string, setId: string): Promise<string> {
   const cached = setNameCache.get(setId);
   if (cached && cached.expires > Date.now()) return cached.name;
@@ -20,15 +47,16 @@ async function resolveSetName(base: string, setId: string): Promise<string> {
     });
     if (res.ok) {
       const data = (await res.json()) as { name?: string };
-      const name = data.name?.trim() || setId;
+      const name = displaySetName(setId, data.name);
       setNameCache.set(setId, { name, expires: Date.now() + SET_TTL_MS });
       return name;
     }
   } catch {
     /* fall through */
   }
-  setNameCache.set(setId, { name: setId, expires: Date.now() + SET_TTL_MS });
-  return setId;
+  const name = displaySetName(setId);
+  setNameCache.set(setId, { name, expires: Date.now() + SET_TTL_MS });
+  return name;
 }
 
 export async function GET(req: Request) {
@@ -59,8 +87,8 @@ export async function GET(req: Request) {
       unique.slice(0, 20).map(async (c) => {
         const setId = c.set?.id ?? c.id.split("-")[0] ?? "";
         const setName =
-          c.set?.name && c.set.name !== setId
-            ? c.set.name
+          c.set?.name && c.set.name.toLowerCase() !== setId.toLowerCase()
+            ? displaySetName(setId, c.set.name)
             : await resolveSetName(base, setId);
         return {
           id: c.id,

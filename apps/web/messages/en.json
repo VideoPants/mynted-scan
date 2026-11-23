@@ -46,7 +46,8 @@
     "shutter": "Capture",
     "processing": "Measuring centering…",
     "permissionDenied": "Camera permission denied. You can upload photos instead.",
-    "uploadHint": "JPEG, PNG, or HEIC (where supported)."
+    "uploadHint": "JPEG, PNG, or HEIC (where supported).",
+    "choosePhoto": "Choose photo"
   },
   "results": {
     "title": "Centering result",
@@ -68,6 +69,11 @@
     "wider": "Wider on {side}",
     "disclaimer": "MyntedScan is a MYNTED tool. It is not affiliated with PSA, CGC, Beckett, TAG, or The Pokémon Company. Results are centering ceilings with uncertainty, not grades.",
     "couldntMeasure": "Couldn't measure, adjust lines manually",
+    "slabUnsupported": "Remove from slab or crop to the card",
+    "sideL": "L",
+    "sideR": "R",
+    "sideT": "T",
+    "sideB": "B",
     "lowConfidenceWarn": "Low confidence — ratios shown without company ceilings.",
     "faceFront": "Front",
     "faceBack": "Back",

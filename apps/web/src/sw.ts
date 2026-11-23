@@ -34,6 +34,17 @@ const serwist = new Serwist({
   fallbacks: {
     entries: [
       {
+        url: "/ar/offline",
+        matcher({ request }) {
+          if (request.destination !== "document") return false;
+          try {
+            return new URL(request.url).pathname.startsWith("/ar");
+          } catch {
+            return false;
+          }
+        },
+      },
+      {
         url: "/en/offline",
         matcher({ request }) {
           return request.destination === "document";

@@ -27,19 +27,57 @@ export const CASES = [
   { id: "prev-60-40", L: 3.6, R: 2.4, T: 3.0, B: 3.0, leftPct: 60, rightPct: 40, topPct: 50, bottomPct: 50, seed: 6040, tilt: 12 },
 ];
 
+/** PSA-like plastic slab (~80×133 mm) with label band + nested card. */
+export const SLAB_CASES = [
+  {
+    id: "slab-c60",
+    kind: "slab",
+    L: 3.6,
+    R: 2.4,
+    T: 2.4,
+    B: 3.6,
+    leftPct: 60,
+    rightPct: 40,
+    topPct: 40,
+    bottomPct: 60,
+    seed: 860,
+    tilt: 10,
+  },
+  {
+    id: "slab-c50",
+    kind: "slab",
+    L: 3.0,
+    R: 3.0,
+    T: 3.0,
+    B: 3.0,
+    leftPct: 50,
+    rightPct: 50,
+    topPct: 50,
+    bottomPct: 50,
+    seed: 850,
+    tilt: 8,
+  },
+];
+
 const py = `
 import cv2, numpy as np, json, sys, os
 
 out_dir = sys.argv[1]
-cases = json.loads(sys.argv[2])
+payload = json.loads(sys.argv[2])
+cases = payload["cases"]
+slab_cases = payload["slabCases"]
 px = 20
 cw, ch = 63 * px, 88 * px
-bg_w, bg_h = 1500, 2000
+# Slab must fit on the canvas with margin (80×133 mm → scale down if needed).
+bg_w, bg_h = 1600, 2400
+sw, sh = 80 * px, 133 * px
+scale = min((bg_w * 0.72) / sw, (bg_h * 0.72) / sh)
+sw, sh = int(sw * scale), int(sh * scale)
+cw_s, ch_s = int(cw * scale), int(ch * scale)
 
 def make_card(L, R, T, B):
     # Cream border + bright yellow frame line (strong luma step) + dark art.
     cream = (200, 215, 230)   # BGR ~ luma 215
-    yellow = (0, 255, 255)    # BGR ~ luma 226 but sharp chroma; draw as thin then art
     frame = (20, 40, 220)     # reddish-yellow line with lower luma ~70 for clear edge
     art = (35, 28, 45)
     card = np.zeros((ch, cw, 3), np.uint8)
@@ -58,21 +96,39 @@ def make_card(L, R, T, B):
         card[:,:,c] = chn.astype(np.uint8)
     return card
 
-def warp_onto_bg(card, seed, tilt):
+def make_slab(L, R, T, B):
+    # Plastic case with red-bordered label on top + nested card (scaled to fit bg).
+    slab = np.zeros((sh, sw, 3), np.uint8)
+    slab[:] = (210, 215, 220)
+    label_h = max(24, int(18 * px * scale))
+    slab[0:label_h, :] = (245, 248, 250)
+    cv2.rectangle(slab, (4, 4), (sw - 5, label_h - 5), (40, 40, 200), 3)
+    card = make_card(L, R, T, B)
+    card = cv2.resize(card, (cw_s, ch_s), interpolation=cv2.INTER_AREA)
+    ox = (sw - cw_s) // 2
+    oy = label_h + (sh - label_h - ch_s) // 2
+    slab[oy:oy+ch_s, ox:ox+cw_s] = card
+    # Soft plastic edge
+    cv2.rectangle(slab, (1, 1), (sw - 2, sh - 2), (160, 165, 170), 2)
+    return slab
+
+def warp_onto_bg(card, seed, tilt, card_w=None, card_h=None):
     rng = np.random.RandomState(seed)
     bg = np.zeros((bg_h, bg_w, 3), np.uint8)
     bg[:] = (18, 16, 14)
     noise = rng.randint(0, 40, (bg_h, bg_w, 3), np.uint8)
     bg = cv2.add(bg, noise // 3)
 
-    ox = (bg_w - cw) // 2
-    oy = (bg_h - ch) // 2
-    src = np.float32([[0,0],[cw-1,0],[cw-1,ch-1],[0,ch-1]])
+    tw = card_w if card_w is not None else card.shape[1]
+    th = card_h if card_h is not None else card.shape[0]
+    ox = (bg_w - tw) // 2
+    oy = (bg_h - th) // 2
+    src = np.float32([[0,0],[tw-1,0],[tw-1,th-1],[0,th-1]])
     base = np.float32([
         [ox, oy],
-        [ox + cw - 1, oy],
-        [ox + cw - 1, oy + ch - 1],
-        [ox, oy + ch - 1],
+        [ox + tw - 1, oy],
+        [ox + tw - 1, oy + th - 1],
+        [ox, oy + th - 1],
     ])
     dst = base + np.float32([
         [rng.randint(-tilt, tilt+1), rng.randint(-tilt, tilt+1)],
@@ -97,10 +153,25 @@ for c in cases:
     manifest.append({**c, "file": c["id"] + ".png"})
     print("wrote", path)
 
+for c in slab_cases:
+    slab = make_slab(c["L"], c["R"], c["T"], c["B"])
+    img = warp_onto_bg(slab, c["seed"], c.get("tilt", 10), sw, sh)
+    path = os.path.join(out_dir, c["id"] + ".png")
+    cv2.imwrite(path, img)
+    manifest.append({**c, "file": c["id"] + ".png"})
+    print("wrote", path)
+
 with open(os.path.join(out_dir, "manifest.json"), "w") as f:
     json.dump(manifest, f, indent=2)
+with open(os.path.join(out_dir, "slab-cases.json"), "w") as f:
+    json.dump(slab_cases, f, indent=2)
 `;
 
-execFileSync("python3", ["-c", py, outDir, JSON.stringify(CASES)], { stdio: "inherit" });
+execFileSync(
+  "python3",
+  ["-c", py, outDir, JSON.stringify({ cases: CASES, slabCases: SLAB_CASES })],
+  { stdio: "inherit" },
+);
 writeFileSync(join(outDir, "cases.json"), JSON.stringify(CASES, null, 2));
-console.log(`Generated ${CASES.length} fixtures in ${outDir}`);
+writeFileSync(join(outDir, "slab-cases.json"), JSON.stringify(SLAB_CASES, null, 2));
+console.log(`Generated ${CASES.length} card + ${SLAB_CASES.length} slab fixtures in ${outDir}`);

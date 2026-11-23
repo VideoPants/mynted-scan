@@ -3,7 +3,7 @@
  * Mirrors services/measure-py/app/measure.py.
  */
 
-import { faceFromBorders } from "./measure.js";
+import { faceFromBorders, residualFromBorders } from "./measure.js";
 import { subpixelPeak } from "./geometry.js";
 import {
   ALGORITHM_VERSION,
@@ -47,9 +47,14 @@ export type OpenCvLike = {
   COLOR_RGBA2GRAY: number;
   COLOR_RGB2GRAY: number;
   RETR_EXTERNAL: number;
+  RETR_LIST: number;
   CHAIN_APPROX_SIMPLE: number;
   CV_32FC2: number;
 };
+
+type DetectQuadResult =
+  | { ok: true; flat: number[]; fromSlab?: boolean }
+  | { ok: false; reason: "SLAB" };
 
 type CvMat = {
   rows: number;
@@ -115,10 +120,32 @@ export function measureImagePixels(
   const gray = new cv.Mat();
   try {
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    const quad = detectQuad(cv, gray);
-    if (!quad) {
+    const detected = detectQuad(cv, gray);
+    if (!detected) {
       throw new MeasureError("noCard");
     }
+    if (!detected.ok) {
+      return faceFromBorders(
+        {
+          face: opts.face,
+          borders: { L: 0, R: 0, T: 0, B: 0 },
+          status: "UNSUPPORTED",
+          confidence: 0.1,
+          framesUsed: opts.framesUsed ?? 1,
+          captureSource: opts.captureSource ?? "UPLOAD",
+          uncertaintyPp: { lr: 2.0, tb: 2.0 },
+          quality: {
+            openCvLoaded: true,
+            width,
+            height,
+            algorithmVersion: ALGORITHM_VERSION,
+            reason: detected.reason,
+          },
+        },
+        profile,
+      );
+    }
+    const quad = detected.flat;
 
     const canonicalW = Math.round(profile.widthMm * profile.pxPerMm);
     const canonicalH = Math.round(profile.heightMm * profile.pxPerMm);
@@ -151,9 +178,18 @@ export function measureImagePixels(
 
     const grayR = new cv.Mat();
     cv.cvtColor(rectified, grayR, cv.COLOR_RGBA2GRAY);
-    const { borders, status, confidence, lines, residualLr, residualTb, reason } =
-      innerBorders(grayR, profile);
+    const inner = innerBorders(grayR, profile);
     grayR.delete();
+
+    // Nested-from-slab that still fails measurement → honest SLAB, not a bogus border code.
+    let { borders, status, confidence, lines, residualLr, residualTb, reason } = inner;
+    if (detected.fromSlab && status === "UNSUPPORTED") {
+      reason = "SLAB";
+      borders = { L: 0, R: 0, T: 0, B: 0 };
+      confidence = 0.1;
+      residualLr = 2.0;
+      residualTb = 2.0;
+    }
 
     // Keep a small JPEG-ish data URL optional via caller; pipeline returns lines only.
     const report = faceFromBorders(
@@ -196,13 +232,97 @@ export function measureImagePixels(
   }
 }
 
-function aspectScore(w: number, h: number, target: number): number {
-  if (w < 8 || h < 8) return Infinity;
-  const a = w / h;
-  return Math.abs(Math.log(a / target));
+/** Portrait-normalized aspect (≤1) so swapped TL/TR edge metrics still score. */
+function portraitAspect(w: number, h: number): number {
+  const a = w / Math.max(h, 1);
+  return a <= 1 ? a : 1 / a;
 }
 
-function detectQuad(cv: OpenCvLike, gray: CvMat): number[] | null {
+function aspectScore(w: number, h: number, target: number): number {
+  if (w < 8 || h < 8) return Infinity;
+  return Math.abs(Math.log(portraitAspect(w, h) / target));
+}
+
+/** PSA slab outer ~80×133 mm (aspect ≈0.60) vs card 63/88. */
+const SLAB_ASPECT = 80 / 133;
+const CARD_ASPECT_FAR = 0.12;
+
+function quadMetrics(flat: number[]): { qw: number; qh: number; area: number; cx: number; cy: number } {
+  const qw = Math.hypot(flat[2]! - flat[0]!, flat[3]! - flat[1]!);
+  const qh = Math.hypot(flat[6]! - flat[0]!, flat[7]! - flat[1]!);
+  const cx = (flat[0]! + flat[2]! + flat[4]! + flat[6]!) / 4;
+  const cy = (flat[1]! + flat[3]! + flat[5]! + flat[7]!) / 4;
+  return { qw, qh, area: qw * qh, cx, cy };
+}
+
+function looksLikeSlab(qw: number, qh: number, targetAspect: number): boolean {
+  const cardScore = aspectScore(qw, qh, targetAspect);
+  const slabScore = aspectScore(qw, qh, SLAB_ASPECT);
+  return cardScore > CARD_ASPECT_FAR && slabScore < cardScore;
+}
+
+function hasLabelBand(gray: CvMat, flat: number[]): boolean {
+  const xs = [flat[0]!, flat[2]!, flat[4]!, flat[6]!];
+  const ys = [flat[1]!, flat[3]!, flat[5]!, flat[7]!];
+  const minX = Math.max(0, Math.floor(Math.min(...xs)));
+  const maxX = Math.min(gray.cols - 1, Math.ceil(Math.max(...xs)));
+  const minY = Math.max(0, Math.floor(Math.min(...ys)));
+  const maxY = Math.min(gray.rows - 1, Math.ceil(Math.max(...ys)));
+  const bandH = Math.max(4, Math.floor((maxY - minY) * 0.12));
+  let sum = 0;
+  let n = 0;
+  for (let y = minY; y < minY + bandH; y += 2) {
+    for (let x = minX; x <= maxX; x += 3) {
+      sum += grayAt(gray, y, x);
+      n++;
+    }
+  }
+  if (n < 10) return false;
+  const topMean = sum / n;
+  // Label band is typically brighter/whiter than the plastic below it.
+  let below = 0;
+  let bn = 0;
+  const belowY0 = minY + bandH + 4;
+  const belowY1 = Math.min(maxY, belowY0 + bandH);
+  for (let y = belowY0; y < belowY1; y += 2) {
+    for (let x = minX; x <= maxX; x += 3) {
+      below += grayAt(gray, y, x);
+      bn++;
+    }
+  }
+  if (bn < 10) return false;
+  return topMean > 140 && topMean - below / bn > 25;
+}
+
+function pointInOuterBBox(flat: number[], x: number, y: number): boolean {
+  const xs = [flat[0]!, flat[2]!, flat[4]!, flat[6]!];
+  const ys = [flat[1]!, flat[3]!, flat[5]!, flat[7]!];
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return x >= minX && x <= maxX && y >= minY && y <= maxY;
+}
+
+function findNestedCardQuad(
+  cands: { flat: number[]; area: number; qw: number; qh: number }[],
+  outer: number[],
+  targetAspect: number,
+): number[] | null {
+  const outerM = quadMetrics(outer);
+  let best: { score: number; flat: number[] } | null = null;
+  for (const c of cands) {
+    if (c.area < outerM.area * 0.2 || c.area > outerM.area * 0.85) continue;
+    const { cx, cy } = quadMetrics(c.flat);
+    if (!pointInOuterBBox(outer, cx, cy)) continue;
+    const score = aspectScore(c.qw, c.qh, targetAspect);
+    if (score > 0.25) continue;
+    if (!best || score < best.score) best = { score, flat: c.flat };
+  }
+  return best ? shrinkQuadFlat(best.flat, 1) : null;
+}
+
+function detectQuad(cv: OpenCvLike, gray: CvMat): DetectQuadResult | null {
   const h = gray.rows;
   const w = gray.cols;
   const imgArea = h * w;
@@ -233,13 +353,13 @@ function detectQuad(cv: OpenCvLike, gray: CvMat): number[] | null {
     const bh = maxY - minY + 1;
     // Card nearly fills the frame — use image bounds (already rectified / clean).
     if (bw * bh > imgArea * 0.9 || (minX <= 2 && minY <= 2 && maxX >= w - 3 && maxY >= h - 3)) {
-      return fillFallback;
+      return { ok: true, flat: fillFallback };
     }
     // Bright AABB is only safe when the card nearly fills that box (little
     // perspective). Otherwise background corners survive the warp.
     const bboxArea = bw * bh;
     const fillInBbox = bboxArea > 0 ? (bright * 4) / bboxArea : 0;
-    if (aspectScore(bw, bh, targetAspect) < 0.35 && fillInBbox > 0.85) {
+    if (fillInBbox > 0.85) {
       brightBBoxQuad = shrinkQuadFlat([minX, minY, maxX, minY, maxX, maxY, minX, maxY], 1);
     }
   }
@@ -251,19 +371,21 @@ function detectQuad(cv: OpenCvLike, gray: CvMat): number[] | null {
   try {
     cv.GaussianBlur(gray, blur, { width: 5, height: 5 }, 0);
     cv.Canny(blur, edges, 40, 140);
-    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    // LIST captures nested card contours inside a slab outer.
+    const mode = cv.RETR_LIST ?? cv.RETR_EXTERNAL;
+    cv.findContours(edges, contours, hierarchy, mode, cv.CHAIN_APPROX_SIMPLE);
     const n = contours.size();
     if (n === 0) {
-      return brightBBoxQuad ?? fillFallback;
+      return { ok: true, flat: brightBBoxQuad ?? fillFallback };
     }
 
-    type Cand = { score: number; flat: number[] };
+    type Cand = { score: number; flat: number[]; area: number; qw: number; qh: number };
     const cands: Cand[] = [];
 
     for (let i = 0; i < n; i++) {
       const cnt = contours.get(i);
       const area = cv.contourArea(cnt);
-      if (area < imgArea * 0.08 || area > imgArea * 0.98) continue;
+      if (area < imgArea * 0.04 || area > imgArea * 0.98) continue;
       const peri = cv.arcLength(cnt, true);
       const approx = new cv.Mat();
       cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
@@ -283,20 +405,61 @@ function detectQuad(cv: OpenCvLike, gray: CvMat): number[] | null {
       }
       approx.delete();
       if (!flat) continue;
-      const qw = Math.hypot(flat[2]! - flat[0]!, flat[3]! - flat[1]!);
-      const qh = Math.hypot(flat[6]! - flat[0]!, flat[7]! - flat[1]!);
+      const { qw, qh, area: qArea } = quadMetrics(flat);
       // Prefer larger cards with Pokémon-like aspect; avoid tiny inner-art quads.
-      const score = aspectScore(qw, qh, targetAspect) - area / imgArea;
-      cands.push({ score, flat });
+      const score = aspectScore(qw, qh, targetAspect) - qArea / imgArea;
+      cands.push({ score, flat, area: qArea, qw, qh });
     }
 
     cands.sort((a, b) => a.score - b.score);
+    let chosen: number[] | null = null;
     if (cands.length > 0) {
-      return shrinkQuadFlat(cands[0]!.flat, 1);
+      // Prefer largest outer when it looks like a PSA slab; search for nested card.
+      const byArea = [...cands].sort((a, b) => b.area - a.area);
+      const largest = byArea[0]!;
+      const largestSlabish =
+        looksLikeSlab(largest.qw, largest.qh, targetAspect) ||
+        hasLabelBand(gray, largest.flat);
+      let fromSlab = false;
+      if (largestSlabish) {
+        const nested = findNestedCardQuad(cands, largest.flat, targetAspect);
+        if (nested) {
+          chosen = nested;
+          fromSlab = true;
+        } else {
+          return { ok: false, reason: "SLAB" };
+        }
+      } else {
+        const best = cands[0]!;
+        const bestSlabish =
+          looksLikeSlab(best.qw, best.qh, targetAspect) || hasLabelBand(gray, best.flat);
+        if (bestSlabish) {
+          const nested = findNestedCardQuad(cands, best.flat, targetAspect);
+          if (nested) {
+            chosen = nested;
+            fromSlab = true;
+          } else {
+            return { ok: false, reason: "SLAB" };
+          }
+        } else {
+          chosen = shrinkQuadFlat(best.flat, 1);
+        }
+      }
+      if (chosen) {
+        return { ok: true, flat: chosen, fromSlab };
+      }
     }
 
     if (brightBBoxQuad) {
-      return brightBBoxQuad;
+      const bm = quadMetrics(brightBBoxQuad);
+      if (looksLikeSlab(bm.qw, bm.qh, targetAspect) || hasLabelBand(gray, brightBBoxQuad)) {
+        const nested = findNestedCardQuad(cands, brightBBoxQuad, targetAspect);
+        if (nested) return { ok: true, flat: nested, fromSlab: true };
+        return { ok: false, reason: "SLAB" };
+      }
+      if (aspectScore(bm.qw, bm.qh, targetAspect) < 0.35) {
+        return { ok: true, flat: brightBBoxQuad };
+      }
     }
 
     const areas: { i: number; area: number }[] = [];
@@ -307,21 +470,24 @@ function detectQuad(cv: OpenCvLike, gray: CvMat): number[] | null {
     const best = contours.get(areas[0]!.i);
     const rect = cv.boundingRect(best);
     if (rect.width * rect.height > imgArea * 0.9) {
-      return fillFallback;
+      return { ok: true, flat: fillFallback };
     }
-    return shrinkQuadFlat(
-      [
-        rect.x,
-        rect.y,
-        rect.x + rect.width - 1,
-        rect.y,
-        rect.x + rect.width - 1,
-        rect.y + rect.height - 1,
-        rect.x,
-        rect.y + rect.height - 1,
-      ],
-      1,
-    );
+    return {
+      ok: true,
+      flat: shrinkQuadFlat(
+        [
+          rect.x,
+          rect.y,
+          rect.x + rect.width - 1,
+          rect.y,
+          rect.x + rect.width - 1,
+          rect.y + rect.height - 1,
+          rect.x,
+          rect.y + rect.height - 1,
+        ],
+        1,
+      ),
+    };
   } finally {
     blur.delete();
     edges.delete();
@@ -489,20 +655,6 @@ function percentile(sorted: number[], p: number): number {
   if (lo === hi) return sorted[lo]!;
   const t = idx - lo;
   return sorted[lo]! * (1 - t) + sorted[hi]! * t;
-}
-
-/** Propagate border mm uncertainty into larger-side percentage points. */
-function residualFromBorders(
-  a: number,
-  b: number,
-  ua: number,
-  ub: number,
-): number {
-  const sum = a + b;
-  if (sum <= 1e-6) return 2.0;
-  // d(100*a/sum)/da = 100*b/sum^2, d/db = -100*a/sum^2
-  const pp = (100 / (sum * sum)) * Math.hypot(b * ua, a * ub);
-  return Math.min(5, Math.max(0.2, pp));
 }
 
 function confidenceFromSpread(residualLr: number, residualTb: number, stationOk: boolean): number {
