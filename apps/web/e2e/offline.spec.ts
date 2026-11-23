@@ -9,8 +9,8 @@ test("offline pages render in both locales", async ({ page }) => {
 });
 
 test("SW serves locale offline page for uncached route", async ({ page, context }) => {
-  // Serwist is disabled under `next dev`; production / CI start enables it.
-  test.skip(!process.env.CI && !process.env.E2E_PROD, "requires production SW");
+  // Serwist is disabled under `next dev`; run with E2E_PROD=1 against `next start`.
+  test.skip(!process.env.E2E_PROD, "requires production SW (E2E_PROD=1)");
 
   await page.goto("/en");
   await page.waitForFunction(async () => {
