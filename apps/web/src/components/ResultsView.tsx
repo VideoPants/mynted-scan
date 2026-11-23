@@ -9,9 +9,55 @@ import {
   type CenteringReport,
   type FaceReport,
 } from "@mynted/centering-core";
-import { loadDraft, saveDraft } from "@/lib/session-scan";
+import { faceRectifiedSrc, loadDraft, saveDraft } from "@/lib/session-scan";
 import { ManualAdjust } from "@/components/ManualAdjust";
 import { CardPicker } from "@/components/CardPicker";
+
+function FaceOverlay({ face }: { face: FaceReport }) {
+  const src = faceRectifiedSrc(face);
+  const lines = face.lines;
+  if (!src || !lines) return null;
+  const w = Math.max(1, lines.outer.R.x1 - lines.outer.L.x1 || 1260);
+  const h = Math.max(1, lines.outer.B.y1 - lines.outer.T.y1 || 1760);
+  const pct = (v: number, dim: number) => `${(v / dim) * 100}%`;
+  return (
+    <div
+      className="relative mx-auto mt-3 aspect-[63/88] w-full max-w-[12rem] overflow-hidden bg-[var(--color-secondary)]"
+      data-testid="results-rectified"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+      {(["L", "R"] as const).map((side) => (
+        <div
+          key={`o-${side}`}
+          className="absolute top-0 bottom-0 w-px bg-white/80"
+          style={{ left: pct(lines.outer[side].x1, w) }}
+        />
+      ))}
+      {(["T", "B"] as const).map((side) => (
+        <div
+          key={`o-${side}`}
+          className="absolute left-0 right-0 h-px bg-white/80"
+          style={{ top: pct(lines.outer[side].y1, h) }}
+        />
+      ))}
+      {(["L", "R"] as const).map((side) => (
+        <div
+          key={`i-${side}`}
+          className="absolute top-0 bottom-0 w-0.5 bg-[var(--color-cta)]"
+          style={{ left: pct(lines.inner[side].x1, w) }}
+        />
+      ))}
+      {(["T", "B"] as const).map((side) => (
+        <div
+          key={`i-${side}`}
+          className="absolute left-0 right-0 h-0.5 bg-[var(--color-cta)]"
+          style={{ top: pct(lines.inner[side].y1, h) }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function ResultsView({
   initialReport,
@@ -46,12 +92,16 @@ export function ResultsView({
     [faces],
   );
 
+  const showCeilings = faces.every(
+    (f) => f.status === "OK" || f.status === "MANUAL",
+  );
+
   if (!report) {
     return (
       <div className="space-y-4">
-        <p>No result yet.</p>
+        <p>{t("noResult")}</p>
         <Link href="/scan" className="btn-primary">
-          Scan
+          {t("scanCta")}
         </Link>
       </div>
     );
@@ -78,7 +128,7 @@ export function ResultsView({
       return;
     }
     if (!res.ok) {
-      setSaveMsg("Save failed");
+      setSaveMsg(t("saveFailed"));
       return;
     }
     const data = (await res.json()) as { id: string };
@@ -116,73 +166,97 @@ export function ResultsView({
         )}
       </div>
 
-      {faces.map((face) => (
-        <section key={face.face} className="space-y-3 border-t border-black/10 pt-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{face.face}</h2>
-            <span className="text-sm">{ts(face.status)}</span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-sm text-[var(--color-subtext)]">{t("lr")}</p>
-              <p className="mono-num text-2xl font-semibold">
-                {formatRatioPair(face.lrRatio)} ± {face.uncertaintyPp.lr.toFixed(1)}
-              </p>
-              <p className="text-xs text-[var(--color-subtext)]">
-                {t("wider", { side: face.lrRatio.wider })}
-              </p>
+      {faces.map((face) => {
+        const unsupported = face.status === "UNSUPPORTED";
+        const low = face.status === "LOW_CONFIDENCE";
+        return (
+          <section key={face.face} className="space-y-3 border-t border-black/10 pt-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {face.face === "FRONT" ? t("faceFront") : t("faceBack")}
+              </h2>
+              <span className="text-sm">{ts(face.status)}</span>
             </div>
-            <div>
-              <p className="text-sm text-[var(--color-subtext)]">{t("tb")}</p>
-              <p className="mono-num text-2xl font-semibold">
-                {formatRatioPair(face.tbRatio)} ± {face.uncertaintyPp.tb.toFixed(1)}
-              </p>
-            </div>
-          </div>
-          <p className="mono-num text-sm">
-            {t("borders")}: L {face.bordersMm.L.toFixed(2)} · R {face.bordersMm.R.toFixed(2)} · T{" "}
-            {face.bordersMm.T.toFixed(2)} · B {face.bordersMm.B.toFixed(2)}
-          </p>
-          {!readOnly && (
-            <button type="button" className="btn-secondary" onClick={() => setManualFace(face)}>
-              {t("manualAdjust")}
-            </button>
-          )}
-        </section>
-      ))}
 
-      <section className="space-y-3 border-t border-black/10 pt-6">
-        <h2 className="text-lg font-semibold">{t("ceilings")}</h2>
-        <p className="text-sm text-[var(--color-subtext)]">{t("ceilingsNote")}</p>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10">
-                <th className="py-2">Company</th>
-                <th>Front</th>
-                <th>Back</th>
-                <th>Overall</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.ceilings.map((c) => (
-                <tr key={c.company} className="border-b border-black/5">
-                  <td className="py-2 font-medium">{c.company}</td>
-                  <td>{c.frontCeiling ?? "—"}</td>
-                  <td>{c.backCeiling ?? "—"}</td>
-                  <td>
-                    {c.overallCeiling ?? "—"}
-                    {c.borderline ? ` (${t("borderline")})` : ""}
-                  </td>
+            {unsupported ? (
+              <p className="text-sm text-[var(--color-subtext)]">{t("couldntMeasure")}</p>
+            ) : (
+              <>
+                {low && (
+                  <p className="rounded-[var(--radius)] bg-[var(--color-secondary)] px-3 py-2 text-sm">
+                    {t("lowConfidenceWarn")}
+                  </p>
+                )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-[var(--color-subtext)]">{t("lr")}</p>
+                    <p className="mono-num text-2xl font-semibold" dir="ltr">
+                      {formatRatioPair(face.lrRatio)}
+                      <span> ± {face.uncertaintyPp.lr.toFixed(1)}</span>
+                    </p>
+                    <p className="text-xs text-[var(--color-subtext)]">
+                      {t("wider", { side: face.lrRatio.wider })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[var(--color-subtext)]">{t("tb")}</p>
+                    <p className="mono-num text-2xl font-semibold" dir="ltr">
+                      {formatRatioPair(face.tbRatio)}
+                      <span> ± {face.uncertaintyPp.tb.toFixed(1)}</span>
+                    </p>
+                  </div>
+                </div>
+                <p className="mono-num text-sm" dir="ltr">
+                  {t("borders")}: L {face.bordersMm.L.toFixed(2)} · R {face.bordersMm.R.toFixed(2)} ·
+                  T {face.bordersMm.T.toFixed(2)} · B {face.bordersMm.B.toFixed(2)}
+                </p>
+                <FaceOverlay face={face} />
+              </>
+            )}
+
+            {!readOnly && (
+              <button type="button" className="btn-secondary" onClick={() => setManualFace(face)}>
+                {t("manualAdjust")}
+              </button>
+            )}
+          </section>
+        );
+      })}
+
+      {showCeilings && (
+        <section className="space-y-3 border-t border-black/10 pt-6">
+          <h2 className="text-lg font-semibold">{t("ceilings")}</h2>
+          <p className="text-sm text-[var(--color-subtext)]">{t("ceilingsNote")}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/10">
+                  <th className="py-2">{t("company")}</th>
+                  <th>{t("colFront")}</th>
+                  <th>{t("colBack")}</th>
+                  <th>{t("colOverall")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-[var(--color-subtext)]">
-          {t("standardsChecked", { date: report.graderConfigCheckedOn })}
-        </p>
-      </section>
+              </thead>
+              <tbody>
+                {report.ceilings.map((c) => (
+                  <tr key={c.company} className="border-b border-black/5">
+                    <td className="py-2 font-medium">{c.company}</td>
+                    <td>{c.frontCeiling ?? "—"}</td>
+                    <td>{c.backCeiling ?? "—"}</td>
+                    <td>
+                      {c.overallCeiling ?? "—"}
+                      {c.borderline ? ` (${t("borderline")})` : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-[var(--color-subtext)]">
+            {t("standardsChecked", { date: report.graderConfigCheckedOn })}
+          </p>
+        </section>
+      )}
 
       {!readOnly && (
         <div className="flex flex-wrap gap-3">

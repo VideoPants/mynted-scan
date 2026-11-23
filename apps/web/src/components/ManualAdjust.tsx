@@ -9,6 +9,7 @@ import {
   DEFAULT_POKEMON_PROFILE,
   type FaceReport,
 } from "@mynted/centering-core";
+import { faceRectifiedSrc } from "@/lib/session-scan";
 
 export function ManualAdjust({
   face,
@@ -23,6 +24,7 @@ export function ManualAdjust({
   const px = DEFAULT_POKEMON_PROFILE.pxPerMm;
   const w = DEFAULT_POKEMON_PROFILE.widthMm * px;
   const h = DEFAULT_POKEMON_PROFILE.heightMm * px;
+  const imageSrc = faceRectifiedSrc(face);
 
   const initial = useMemo(() => {
     const b = face.bordersMm;
@@ -51,6 +53,7 @@ export function ManualAdjust({
     uncertaintyPp: face.uncertaintyPp,
     confidence: face.confidence,
     lines: face.lines,
+    quality: face.quality,
   });
 
   useEffect(() => {
@@ -83,7 +86,21 @@ export function ManualAdjust({
         <h2 className="text-xl font-bold">{t("title")}</h2>
         <p className="mt-1 text-sm text-[var(--color-subtext)]">{t("hint")}</p>
 
-        <div className="relative mx-auto mt-4 aspect-[63/88] w-full max-w-xs bg-[var(--color-secondary)]">
+        <div className="relative mx-auto mt-4 aspect-[63/88] w-full max-w-xs overflow-hidden bg-[var(--color-secondary)]">
+          {imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageSrc}
+              alt=""
+              data-testid="manual-rectified"
+              className="absolute inset-0 h-full w-full object-cover"
+              draggable={false}
+            />
+          ) : (
+            <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-[var(--color-subtext)]">
+              {t("reupload")}
+            </p>
+          )}
           {(["L", "R", "T", "B"] as const).map((side) => {
             const isV = side === "L" || side === "R";
             const pos = inner[side];
@@ -95,7 +112,7 @@ export function ManualAdjust({
                 key={side}
                 type="button"
                 aria-label={`inner ${side}`}
-                className={`absolute bg-[var(--color-cta)] ${active === side ? "opacity-100" : "opacity-70"}`}
+                className={`absolute z-10 bg-[var(--color-cta)] ${active === side ? "opacity-100" : "opacity-70"}`}
                 style={style}
                 onClick={() => setActive(side)}
                 onPointerDown={(e) => {
@@ -124,7 +141,7 @@ export function ManualAdjust({
           })}
         </div>
 
-        <p className="mono-num mt-3 text-sm">
+        <p className="mono-num mt-3 text-sm" dir="ltr">
           LR {formatRatioPair(live.lrRatio)} · TB {formatRatioPair(live.tbRatio)}
         </p>
 
@@ -136,7 +153,7 @@ export function ManualAdjust({
             {t("done")}
           </button>
           <button type="button" className="btn-secondary" onClick={onCancel}>
-            Cancel
+            {t("cancel")}
           </button>
         </div>
       </div>

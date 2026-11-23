@@ -23,6 +23,7 @@ data/raw/
 data/generated/
 data/real/
 data/index/
+packages/centering-core/test/fixtures/generated/
 apps/web/public/opencv/
 apps/web/public/workers/measure-core.js
 apps/web/public/index/
@@ -35,6 +36,8 @@ test-results/
 apps/web/test-results/
 apps/web/playwright-report/
 .serwist/
+apps/web/public/sw.js
+apps/web/public/swe-worker-*.js
 **/opencv.js
 **/opencv.wasm
 .uv/

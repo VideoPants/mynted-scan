@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Literal
 
 import cv2
@@ -18,6 +19,11 @@ PROFILE = {
     "corner_skip": 0.12,
     "stations": 60,
 }
+
+BORDER_MIN_MM = 1.0
+BORDER_MAX_MM = 6.0
+OK_MAX_RESIDUAL_PP = 1.5
+ALGORITHM_VERSION = "1.2.0"
 
 
 def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None) -> dict[str, Any]:
@@ -51,9 +57,14 @@ def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None
     H = cv2.getPerspectiveTransform(quad.astype(np.float32), dst)
     rectified = cv2.warpPerspective(image, H, (canonical_w, canonical_h))
 
-    borders, status, confidence, lines = _inner_borders(rectified, face, profile)
+    borders, status, confidence, lines, residual_lr, residual_tb, reason = _inner_borders(
+        rectified, face, profile
+    )
     lr = lr_ratio(borders)
     tb = tb_ratio(borders)
+    quality: dict[str, Any] = {"width": w, "height": h}
+    if reason:
+        quality["reason"] = reason
     return {
         "face": face,
         "status": status,
@@ -61,8 +72,8 @@ def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None
         "lrRatio": lr,
         "tbRatio": tb,
         "uncertaintyPp": {
-            "lr": 0.35 if status == "OK" else 1.0,
-            "tb": 0.35 if status == "OK" else 1.0,
+            "lr": residual_lr,
+            "tb": residual_tb,
         },
         "confidence": confidence,
         "printSkewDeg": 0.0,
@@ -70,38 +81,96 @@ def measure(image: np.ndarray, face: Face = "FRONT", profile: dict | None = None
         "captureSource": "UPLOAD",
         "manualAdjusted": False,
         "lines": lines,
-        "quality": {"width": w, "height": h},
-        "algorithmVersion": "1.0.0",
+        "quality": quality,
+        "algorithmVersion": ALGORITHM_VERSION,
     }
 
 
+def _shrink_quad(pts: np.ndarray, px: float = 1.0) -> np.ndarray:
+    cx = float(pts[:, 0].mean())
+    cy = float(pts[:, 1].mean())
+    out = pts.astype(np.float32).copy()
+    for i in range(4):
+        dx = cx - out[i, 0]
+        dy = cy - out[i, 1]
+        length = float(np.hypot(dx, dy)) or 1.0
+        out[i, 0] += (dx / length) * px
+        out[i, 1] += (dy / length) * px
+    return out
+
+
 def _detect_quad(gray: np.ndarray) -> np.ndarray | None:
+    h, w = gray.shape[:2]
+    img_area = h * w
+    fill = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
+
+    # Bright-region bbox — only used when fill is high (little perspective).
+    bright_bbox: np.ndarray | None = None
+    ys, xs = np.where(gray > 50)
+    if xs.size > 100:
+        min_x, max_x = int(xs.min()), int(xs.max())
+        min_y, max_y = int(ys.min()), int(ys.max())
+        bw, bh = max_x - min_x + 1, max_y - min_y + 1
+        bright_frac = xs.size / img_area
+        if bright_frac > 0.08:
+            if bw * bh > img_area * 0.9 or (
+                min_x <= 2 and min_y <= 2 and max_x >= w - 3 and max_y >= h - 3
+            ):
+                return fill
+            aspect = bw / max(bh, 1)
+            target = 63 / 88
+            fill_in_bbox = (xs.size) / max(bw * bh, 1)
+            if abs(np.log(aspect / target)) < 0.35 and fill_in_bbox > 0.85:
+                bright_bbox = _shrink_quad(
+                    np.array(
+                        [[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]],
+                        dtype=np.float32,
+                    )
+                )
+
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blur, 40, 140)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
-        h, w = gray.shape[:2]
-        return np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
+        return bright_bbox if bright_bbox is not None else fill
 
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
-    img_area = gray.shape[0] * gray.shape[1]
+    best: np.ndarray | None = None
+    best_score = float("inf")
     for cnt in contours[:12]:
-        if cv2.contourArea(cnt) < img_area * 0.05:
+        area = cv2.contourArea(cnt)
+        if area < img_area * 0.08 or area > img_area * 0.98:
             continue
         peri = cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+        pts = None
         if len(approx) == 4 and cv2.isContourConvex(approx):
-            return _order_quad(approx.reshape(4, 2).astype(np.float32))
-        hull = cv2.convexHull(cnt)
-        approx = cv2.approxPolyDP(hull, 0.02 * cv2.arcLength(hull, True), True)
-        if len(approx) == 4:
-            return _order_quad(approx.reshape(4, 2).astype(np.float32))
+            pts = _order_quad(approx.reshape(4, 2).astype(np.float32))
+        else:
+            hull = cv2.convexHull(cnt)
+            approx2 = cv2.approxPolyDP(hull, 0.02 * cv2.arcLength(hull, True), True)
+            if len(approx2) == 4:
+                pts = _order_quad(approx2.reshape(4, 2).astype(np.float32))
+        if pts is None:
+            continue
+        qw = float(np.hypot(pts[1, 0] - pts[0, 0], pts[1, 1] - pts[0, 1]))
+        qh = float(np.hypot(pts[3, 0] - pts[0, 0], pts[3, 1] - pts[0, 1]))
+        score = abs(np.log((qw / max(qh, 1)) / (63 / 88))) - area / img_area
+        if score < best_score:
+            best_score = score
+            best = pts
 
-    # Largest contour bounding rect as coarse quad
+    if best is not None:
+        return _shrink_quad(best)
+
+    if bright_bbox is not None:
+        return bright_bbox
+
     x, y, bw, bh = cv2.boundingRect(contours[0])
-    return np.array(
-        [[x, y], [x + bw - 1, y], [x + bw - 1, y + bh - 1], [x, y + bh - 1]],
-        dtype=np.float32,
+    if bw * bh > img_area * 0.9:
+        return fill
+    return _shrink_quad(
+        np.array([[x, y], [x + bw - 1, y], [x + bw - 1, y + bh - 1], [x, y + bh - 1]], dtype=np.float32)
     )
 
 
@@ -110,14 +179,80 @@ def _order_quad(pts: np.ndarray) -> np.ndarray:
     diff = np.diff(pts, axis=1).reshape(-1)
     tl = pts[np.argmin(s)]
     br = pts[np.argmax(s)]
-    tr = pts[np.argmin(diff)]
-    bl = pts[np.argmax(diff)]
+    # tr has large x-y; bl has small x-y
+    tr = pts[np.argmax(diff)]
+    bl = pts[np.argmin(diff)]
     return np.array([tl, tr, br, bl], dtype=np.float32)
 
 
-def _border_width_px(gray: np.ndarray, side: str, skip: float, stations: int) -> float | None:
+def _abs_gradient(samples: np.ndarray) -> np.ndarray:
+    g = np.zeros_like(samples, dtype=np.float32)
+    if len(samples) < 2:
+        return g
+    g[0] = abs(float(samples[1] - samples[0]))
+    g[-1] = abs(float(samples[-1] - samples[-2]))
+    for i in range(1, len(samples) - 1):
+        g[i] = abs(float(samples[i + 1] - samples[i - 1]) / 2)
+    return g
+
+
+def _first_strong_edge(segment: np.ndarray) -> float | None:
+    grad = _abs_gradient(segment.astype(np.float32))
+    max_g = float(grad.max()) if len(grad) else 0.0
+    if max_g < 4:
+        return None
+    threshold = max(4.0, 0.4 * max_g)
+    for i in range(1, len(grad) - 1):
+        g = float(grad[i])
+        if g < threshold:
+            continue
+        if g >= float(grad[i - 1]) and g >= float(grad[i + 1]):
+            return float(subpixel_peak(grad, i))
+    for i in range(len(grad)):
+        if float(grad[i]) >= threshold:
+            return float(subpixel_peak(grad, i))
+    return None
+
+
+def _percentile(sorted_vals: list[float], p: float) -> float:
+    if len(sorted_vals) == 1:
+        return sorted_vals[0]
+    idx = (len(sorted_vals) - 1) * p
+    lo = int(np.floor(idx))
+    hi = int(np.ceil(idx))
+    if lo == hi:
+        return sorted_vals[lo]
+    t = idx - lo
+    return sorted_vals[lo] * (1 - t) + sorted_vals[hi] * t
+
+
+def _robust_median_iqr(values: list[float]) -> tuple[float, float, int] | None:
+    if not values:
+        return None
+    sorted_vals = sorted(values)
+    q1 = _percentile(sorted_vals, 0.25)
+    q3 = _percentile(sorted_vals, 0.75)
+    iqr0 = max(0.0, q3 - q1)
+    med0 = _percentile(sorted_vals, 0.5)
+    lo = med0 - 1.5 * iqr0
+    hi = med0 + 1.5 * iqr0
+    kept = [v for v in sorted_vals if lo <= v <= hi]
+    use = kept if len(kept) >= max(4, len(sorted_vals) // 3) else sorted_vals
+    return (
+        _percentile(use, 0.5),
+        max(0.0, _percentile(use, 0.75) - _percentile(use, 0.25)),
+        len(use),
+    )
+
+
+def _border_width_px(
+    gray: np.ndarray, side: str, skip: float, stations: int, px_per_mm: float
+) -> tuple[float, float, int] | None:
     h, w = gray.shape[:2]
+    offset_px = max(10, int(round(0.75 * px_per_mm)))
+    search_px = int(round(8 * px_per_mm))
     widths: list[float] = []
+
     if side in ("L", "R"):
         y0 = int(h * skip)
         y1 = int(h * (1 - skip))
@@ -126,14 +261,14 @@ def _border_width_px(gray: np.ndarray, side: str, skip: float, stations: int) ->
             row = gray[yi, :].astype(np.float32)
             if side == "R":
                 row = row[::-1]
-            # Strong first transition from border band
-            edge = int(min(w // 2, max(8, w // 3)))
-            segment = row[:edge]
-            grad = np.abs(np.gradient(segment))
-            if grad.max() < 4:
+            max_i = min(w // 2, offset_px + search_px)
+            segment = row[offset_px:max_i]
+            if len(segment) < 4:
                 continue
-            peak = int(np.argmax(grad))
-            widths.append(float(subpixel_peak(grad, peak)))
+            peak = _first_strong_edge(segment)
+            if peak is None:
+                continue
+            widths.append(offset_px + peak)
     else:
         x0 = int(w * skip)
         x1 = int(w * (1 - skip))
@@ -142,22 +277,38 @@ def _border_width_px(gray: np.ndarray, side: str, skip: float, stations: int) ->
             col = gray[:, xi].astype(np.float32)
             if side == "B":
                 col = col[::-1]
-            edge = int(min(h // 2, max(8, h // 3)))
-            segment = col[:edge]
-            grad = np.abs(np.gradient(segment))
-            if grad.max() < 4:
+            max_i = min(h // 2, offset_px + search_px)
+            segment = col[offset_px:max_i]
+            if len(segment) < 4:
                 continue
-            peak = int(np.argmax(grad))
-            widths.append(float(subpixel_peak(grad, peak)))
+            peak = _first_strong_edge(segment)
+            if peak is None:
+                continue
+            widths.append(offset_px + peak)
 
     if len(widths) < max(8, stations // 4):
         return None
-    return float(np.median(widths))
+    return _robust_median_iqr(widths)
+
+
+def _residual_from_borders(a: float, b: float, ua: float, ub: float) -> float:
+    s = a + b
+    if s <= 1e-6:
+        return 2.0
+    pp = (100.0 / (s * s)) * float(np.hypot(b * ua, a * ub))
+    return float(min(5.0, max(0.2, pp)))
+
+
+def _confidence_from_spread(residual_lr: float, residual_tb: float) -> float:
+    worst = max(residual_lr, residual_tb)
+    if worst > OK_MAX_RESIDUAL_PP:
+        return max(0.25, 0.7 - (worst - OK_MAX_RESIDUAL_PP) * 0.15)
+    return max(0.55, min(0.95, 0.95 - worst * 0.2))
 
 
 def _inner_borders(
     rectified: np.ndarray, face: Face, profile: dict
-) -> tuple[dict, Status, float, dict]:
+) -> tuple[dict, Status, float, dict, float, float, str | None]:
     gray = cv2.cvtColor(rectified, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape[:2]
     px = float(profile["px_per_mm"])
@@ -165,27 +316,40 @@ def _inner_borders(
     skip = float(profile["corner_skip"])
 
     measured = {
-        "L": _border_width_px(gray, "L", skip, stations),
-        "R": _border_width_px(gray, "R", skip, stations),
-        "T": _border_width_px(gray, "T", skip, stations),
-        "B": _border_width_px(gray, "B", skip, stations),
+        "L": _border_width_px(gray, "L", skip, stations, px),
+        "R": _border_width_px(gray, "R", skip, stations, px),
+        "T": _border_width_px(gray, "T", skip, stations, px),
+        "B": _border_width_px(gray, "B", skip, stations, px),
     }
 
+    reason: str | None = None
     if any(v is None for v in measured.values()):
         borders = {"L": 0.0, "R": 0.0, "T": 0.0, "B": 0.0}
         status: Status = "UNSUPPORTED"
         confidence = 0.15
+        residual_lr = 2.0
+        residual_tb = 2.0
+        reason = "NO_INNER_EDGE"
     else:
-        borders = {k: float(v) / px for k, v in measured.items()}  # type: ignore[misc]
-        if min(borders.values()) < 0.15:
+        borders = {k: float(v[0]) / px for k, v in measured.items()}  # type: ignore[index]
+
+        def side_unc_mm(v: tuple[float, float, int]) -> float:
+            return float(v[1]) / 1.349 / math.sqrt(max(8, v[2])) / px
+
+        u = {k: side_unc_mm(v) for k, v in measured.items()}  # type: ignore[arg-type]
+        residual_lr = _residual_from_borders(borders["L"], borders["R"], u["L"], u["R"])
+        residual_tb = _residual_from_borders(borders["T"], borders["B"], u["T"], u["B"])
+        vals = list(borders.values())
+        if any(v < BORDER_MIN_MM or v > BORDER_MAX_MM for v in vals):
             status = "UNSUPPORTED"
+            reason = "BORDER_OUT_OF_RANGE"
             confidence = 0.2
-        elif max(borders.values()) > 10:
+        elif max(residual_lr, residual_tb) > OK_MAX_RESIDUAL_PP:
             status = "LOW_CONFIDENCE"
-            confidence = 0.45
+            confidence = _confidence_from_spread(residual_lr, residual_tb)
         else:
             status = "OK"
-            confidence = 0.88
+            confidence = _confidence_from_spread(residual_lr, residual_tb)
 
     lines = {
         "outer": {
@@ -195,33 +359,13 @@ def _inner_borders(
             "B": {"x1": 0, "y1": h, "x2": w, "y2": h},
         },
         "inner": {
-            "L": {
-                "x1": borders["L"] * px,
-                "y1": 0,
-                "x2": borders["L"] * px,
-                "y2": h,
-            },
-            "R": {
-                "x1": w - borders["R"] * px,
-                "y1": 0,
-                "x2": w - borders["R"] * px,
-                "y2": h,
-            },
-            "T": {
-                "x1": 0,
-                "y1": borders["T"] * px,
-                "x2": w,
-                "y2": borders["T"] * px,
-            },
-            "B": {
-                "x1": 0,
-                "y1": h - borders["B"] * px,
-                "x2": w,
-                "y2": h - borders["B"] * px,
-            },
+            "L": {"x1": borders["L"] * px, "y1": 0, "x2": borders["L"] * px, "y2": h},
+            "R": {"x1": w - borders["R"] * px, "y1": 0, "x2": w - borders["R"] * px, "y2": h},
+            "T": {"x1": 0, "y1": borders["T"] * px, "x2": w, "y2": borders["T"] * px},
+            "B": {"x1": 0, "y1": h - borders["B"] * px, "x2": w, "y2": h - borders["B"] * px},
         },
     }
-    return borders, status, confidence, lines
+    return borders, status, confidence, lines, residual_lr, residual_tb, reason
 
 
 def _unsupported(face: Face, reason: str) -> dict[str, Any]:
@@ -239,5 +383,5 @@ def _unsupported(face: Face, reason: str) -> dict[str, Any]:
         "captureSource": "UPLOAD",
         "manualAdjusted": False,
         "quality": {"reason": reason},
-        "algorithmVersion": "1.0.0",
+        "algorithmVersion": ALGORITHM_VERSION,
     }

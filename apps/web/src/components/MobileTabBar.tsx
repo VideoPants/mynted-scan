@@ -9,7 +9,7 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
 
   const items = [
-    { href: "/", label: "Home", icon: House, match: (p: string) => p === "/" },
+    { href: "/", label: t("home"), icon: House, match: (p: string) => p === "/" },
     { href: "/scan", label: t("scan"), icon: Camera, match: (p: string) => p.startsWith("/scan") },
     {
       href: signedIn ? "/history" : "/sign-in",
@@ -47,7 +47,7 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
             className="flex flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium text-[var(--color-subtext)]"
           >
             <Storefront size={22} />
-            <span>Shop</span>
+            <span>{t("shop")}</span>
           </a>
         </li>
       </ul>

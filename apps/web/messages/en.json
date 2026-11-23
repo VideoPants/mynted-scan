@@ -10,10 +10,16 @@
     "signUp": "Sign up",
     "signOut": "Sign out",
     "backToMynted": "Back to MYNTED",
-    "upload": "Upload instead"
+    "backShort": "MYNTED",
+    "upload": "Upload instead",
+    "home": "Home",
+    "shop": "Shop"
   },
   "home": {
     "product": "Scan",
+    "previewLr": "L / R",
+    "previewCeiling": "Ceiling",
+    "previewPsaBand": "PSA 10 band",
     "headlineBefore": "Measure card",
     "headlineAccent": "centering",
     "headlineAfter": "on your phone.",
@@ -60,13 +66,26 @@
     "tips": "Tips",
     "frontOnly": "Front only",
     "wider": "Wider on {side}",
-    "disclaimer": "MyntedScan is a MYNTED tool. It is not affiliated with PSA, CGC, Beckett, TAG, or The Pokémon Company. Results are centering ceilings with uncertainty, not grades."
+    "disclaimer": "MyntedScan is a MYNTED tool. It is not affiliated with PSA, CGC, Beckett, TAG, or The Pokémon Company. Results are centering ceilings with uncertainty, not grades.",
+    "couldntMeasure": "Couldn't measure, adjust lines manually",
+    "lowConfidenceWarn": "Low confidence — ratios shown without company ceilings.",
+    "faceFront": "Front",
+    "faceBack": "Back",
+    "company": "Company",
+    "colFront": "Front",
+    "colBack": "Back",
+    "colOverall": "Overall",
+    "noResult": "No result yet.",
+    "scanCta": "Scan",
+    "saveFailed": "Save failed"
   },
   "manual": {
     "title": "Adjust lines",
     "hint": "Drag lines or nudge with arrow keys (0.1 mm). Reset restores the detector.",
     "reset": "Reset",
-    "done": "Done"
+    "done": "Done",
+    "cancel": "Cancel",
+    "reupload": "Re-upload to adjust"
   },
   "cardPicker": {
     "title": "Find your card",
@@ -114,5 +133,10 @@
     "LOW_CONFIDENCE": "Low confidence",
     "UNSUPPORTED": "Unsupported — adjust manually",
     "MANUAL": "Manually adjusted"
+  },
+  "offline": {
+    "title": "You're offline",
+    "body": "MyntedScan works offline for measuring once assets are cached. Reconnect to sync history.",
+    "cta": "Back to scan"
   }
 }

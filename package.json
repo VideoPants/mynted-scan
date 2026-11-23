@@ -29,6 +29,6 @@
     "py:test": "cd services/measure-py && uv run pytest -q"
   },
   "engines": {
-    "node": ">=20"
+    "node": "26.x"
   }
 }

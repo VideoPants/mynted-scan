@@ -18,6 +18,25 @@ function getWorker(): Worker {
   return worker;
 }
 
+/** Downscale rectified JPEG for sessionStorage persistence. */
+async function blobToDataUrl(blob: Blob, maxWidth = 640, quality = 0.72): Promise<string> {
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, maxWidth / Math.max(1, bitmap.width));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return "";
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 function callWorker<T>(
   type: string,
   payload: unknown,
@@ -33,14 +52,25 @@ function callWorker<T>(
         reject(new Error(event.data.error || "measure_failed"));
         return;
       }
-      const result = event.data.result as FaceReport & { rectifiedUrl?: string };
-      if (event.data.rectifiedBlob) {
-        result.quality = {
-          ...(result.quality ?? {}),
-          rectifiedUrl: URL.createObjectURL(event.data.rectifiedBlob),
-        };
-      }
-      resolve(result as T);
+      void (async () => {
+        const result = event.data.result as FaceReport;
+        if (event.data.rectifiedBlob) {
+          const blob = event.data.rectifiedBlob;
+          const rectifiedUrl = URL.createObjectURL(blob);
+          let rectifiedDataUrl = "";
+          try {
+            rectifiedDataUrl = await blobToDataUrl(blob);
+          } catch {
+            rectifiedDataUrl = "";
+          }
+          result.quality = {
+            ...(result.quality ?? {}),
+            rectifiedUrl,
+            ...(rectifiedDataUrl ? { rectifiedDataUrl } : {}),
+          };
+        }
+        resolve(result as T);
+      })();
     };
     w.addEventListener("message", onMessage);
     w.postMessage({ id, type, payload }, transfer ?? []);
