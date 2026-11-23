@@ -41,6 +41,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Install
         run: npm install
+      - name: Install OpenCV for fixture generation
+        run: pip install --user opencv-python-headless numpy
       - name: Build packages
         run: npm run build -w @mynted/centering-core && npm run build -w @mynted/card-id
       - name: Migrate
@@ -100,6 +102,8 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Install
         run: npm install
+      - name: Install OpenCV for fixture generation
+        run: pip install --user opencv-python-headless numpy
       - name: Build centering-core
         run: npm run build -w @mynted/centering-core
       - name: Generate synthetic fixtures
